@@ -130,11 +130,16 @@ export default function AdminPage() {
                 <Icon name="group" size={17} color="#C9BBFF" />Customers
               </RippleButton>
             </Link>
-            <a href="/admin/content" style={{ textDecoration: 'none' }}>
+            <Link href="/admin/content" style={{ textDecoration: 'none' }}>
               <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>
                 <Icon name="edit_note" size={17} color="#C9BBFF" />Content
               </RippleButton>
-            </a>
+            </Link>
+            <Link href="/admin/system" style={{ textDecoration: 'none' }}>
+              <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>
+                <Icon name="monitor_heart" size={17} color="#C9BBFF" />System
+              </RippleButton>
+            </Link>
             <a href="/dashboard" style={{ textDecoration: 'none' }}>
               <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>
                 <Icon name="arrow_back" size={17} color="#C9BBFF" />Back to app

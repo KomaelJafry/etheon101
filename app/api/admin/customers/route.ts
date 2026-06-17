@@ -26,13 +26,13 @@ export async function GET(req: NextRequest) {
   const miningThreshold     = thresholds['mining_minimum_start_balance_usd'] ?? 100
   const withdrawalThreshold = thresholds['withdrawal_unlock_balance_usd'] ?? 1000
 
+  // Main query — no verification_checks join so it works even if migration 004 hasn't run
   let query = supabase
     .from('profiles')
     .select(`
       id, email, full_name, role, eth_balance, hashrate_th, hashrate_capacity_th,
       mining_status, vip_tier, is_active, created_at, eth_wallet_address,
-      subscriptions(id, status, billing_period, current_period_end),
-      verification_checks(key, status)
+      subscriptions(id, status, billing_period, current_period_end)
     `, { count: 'exact' })
     .eq('role', 'customer')
     .order('created_at', { ascending: false })
@@ -45,11 +45,27 @@ export async function GET(req: NextRequest) {
   const { data, count, error: dbErr } = await query
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
+  // Separate verification_checks query — gracefully degrade if table doesn't exist
+  const userIds = (data ?? []).map(u => u.id)
+  const checksMap: Record<string, { status: string }[]> = {}
+  if (userIds.length > 0) {
+    const { data: checksData } = await supabase
+      .from('verification_checks')
+      .select('user_id, key, status')
+      .in('user_id', userIds)
+    if (checksData) {
+      for (const c of checksData) {
+        if (!checksMap[c.user_id]) checksMap[c.user_id] = []
+        checksMap[c.user_id].push({ status: c.status })
+      }
+    }
+  }
+
   // Annotate each user with computed status fields.
   // ETH price is applied client-side; we return eth_balance and thresholds.
   const users = (data ?? []).map(u => {
     const sub = Array.isArray(u.subscriptions) ? u.subscriptions[0] : u.subscriptions
-    const checks = Array.isArray(u.verification_checks) ? u.verification_checks : []
+    const checks = checksMap[u.id] ?? []
     const checksTotal = checks.length
     const checksComplete = checks.filter((c: { status: string }) => c.status === 'complete').length
     const subStatus = sub?.status ?? 'none'

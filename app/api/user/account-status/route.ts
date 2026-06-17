@@ -16,7 +16,22 @@ export async function GET() {
     supabase.from('subscriptions').select('status, billing_period, current_period_end').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(1),
   ])
 
-  if (profileRes.error) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+  if (profileRes.error) {
+    // Profile row missing (trigger may not have fired). Return a safe empty setup state
+    // rather than crashing the customer account page.
+    const thresholds2: Record<string, number> = {}
+    for (const row of threshRes.data ?? []) thresholds2[row.element_key] = parseFloat(row.value) || 0
+    return NextResponse.json({
+      profile: { id: user!.id, full_name: null, email: user!.email ?? '', eth_balance: 0, mining_status: 'offline', is_active: false, eth_wallet_address: null },
+      subscription: null,
+      checks: [],
+      messages: [],
+      config: {
+        miningThreshold: thresholds2['mining_minimum_start_balance_usd'] ?? 100,
+        withdrawalThreshold: thresholds2['withdrawal_unlock_balance_usd'] ?? 1000,
+      },
+    })
+  }
 
   const thresholds: Record<string, number> = {}
   for (const row of threshRes.data ?? []) {

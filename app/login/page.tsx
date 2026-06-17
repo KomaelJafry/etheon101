@@ -41,7 +41,7 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.get('tab') === 'signup') setTab('signup');
     const urlError = params.get('error');
-    if (urlError === 'auth_failed') setErr('Google sign-in could not be completed. Please try again or use email.');
+    if (urlError === 'auth_failed') setErr('Sign-in could not be completed. Please use email to continue.');
     else if (urlError === 'admin_required') setErr('Admin access required. Please sign in with an admin account.');
   }, []);
 
@@ -138,21 +138,15 @@ export default function LoginPage() {
             <RippleButton variant="none" onClick={() => switchTab('signup')} className={!isLogin ? 'anim-tab-slide' : ''} style={{ flex: 1, padding: '11px', borderRadius: '11px', border: 'none', fontFamily: "'Manrope', sans-serif", fontWeight: 700, fontSize: '14px', transition: 'all .18s ease', background: !isLogin ? '#fff' : 'transparent', color: !isLogin ? '#0B0A14' : '#8A8699' }}>Sign up</RippleButton>
           </div>
 
-          {/* Google sign-in */}
+          {/* Google sign-in — temporarily unavailable */}
           <button
             type="button"
-            onClick={async () => {
-              setLoading(true); setErr('');
-              const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: { redirectTo: `${window.location.origin}/auth/callback` },
-              });
-              if (error) { setErr('Google sign-in failed. Please try again.'); setLoading(false); }
+            onClick={() => {
+              setErr(get('auth', 'auth_google_unavailable_message', 'Google sign-in is temporarily unavailable. Please continue with email.'));
             }}
-            disabled={loading}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '13px', borderRadius: '13px', marginBottom: '10px', fontSize: '14px', fontWeight: 700, color: '#E9E7F2', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '13px', borderRadius: '13px', marginBottom: '10px', fontSize: '14px', fontWeight: 700, color: '#9E9AB5', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', transition: 'opacity 0.15s' }}
           >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2a10.34 10.34 0 0 0-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92A8.78 8.78 0 0 0 17.64 9.2Z" fill="#4285F4"/><path d="M9 18a8.6 8.6 0 0 0 5.96-2.18l-2.92-2.26A5.43 5.43 0 0 1 9 14.8a5.4 5.4 0 0 1-5.08-3.73H.92v2.34A9 9 0 0 0 9 18Z" fill="#34A853"/><path d="M3.92 11.07A5.41 5.41 0 0 1 3.64 9c0-.72.12-1.42.28-2.07V4.59H.92A9 9 0 0 0 0 9c0 1.45.35 2.82.92 4.05l3-2.34-.28-.64Z" fill="#FBBC05"/><path d="M9 3.58a4.86 4.86 0 0 1 3.44 1.34l2.58-2.58A8.64 8.64 0 0 0 9 0 9 9 0 0 0 .92 4.59l3 2.34A5.4 5.4 0 0 1 9 3.58Z" fill="#EA4335"/></svg>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ opacity: 0.5 }}><path d="M17.64 9.2a10.34 10.34 0 0 0-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92A8.78 8.78 0 0 0 17.64 9.2Z" fill="#4285F4"/><path d="M9 18a8.6 8.6 0 0 0 5.96-2.18l-2.92-2.26A5.43 5.43 0 0 1 9 14.8a5.4 5.4 0 0 1-5.08-3.73H.92v2.34A9 9 0 0 0 9 18Z" fill="#34A853"/><path d="M3.92 11.07A5.41 5.41 0 0 1 3.64 9c0-.72.12-1.42.28-2.07V4.59H.92A9 9 0 0 0 0 9c0 1.45.35 2.82.92 4.05l3-2.34-.28-.64Z" fill="#FBBC05"/><path d="M9 3.58a4.86 4.86 0 0 1 3.44 1.34l2.58-2.58A8.64 8.64 0 0 0 9 0 9 9 0 0 0 .92 4.59l3 2.34A5.4 5.4 0 0 1 9 3.58Z" fill="#EA4335"/></svg>
             Continue with Google
           </button>
           {/* Wallet connect — coming soon */}

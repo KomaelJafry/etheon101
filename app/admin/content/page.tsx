@@ -72,6 +72,7 @@ const FIELD_GROUPS: { page: string; label: string; icon: string; fields: { key: 
   {
     page: 'auth', label: 'Auth Pages', icon: 'lock',
     fields: [
+      { key: 'auth_google_unavailable_message', label: 'Google unavailable message', desc: 'Message shown when a user clicks "Continue with Google" while it is temporarily unavailable.', multiline: true },
       { key: 'login_headline', label: 'Login headline', desc: 'Headline shown on the sign-in form.' },
       { key: 'login_subtext', label: 'Login subtext', desc: 'Paragraph below the login headline.' },
       { key: 'signup_headline', label: 'Sign-up headline', desc: 'Headline shown on the create account form.' },
