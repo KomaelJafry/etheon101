@@ -27,12 +27,6 @@ function InputRow({ icon, children }: { icon: string; children: React.ReactNode 
 export default function LoginPage() {
   const router = useRouter();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
-  useEffect(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'signup') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTab('signup');
-    }
-  }, []);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +34,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (params.get('tab') === 'signup') setTab('signup');
+    const urlError = params.get('error');
+    if (urlError === 'auth_failed') setErr('Google sign-in could not be completed. Please try again or use email.');
+    else if (urlError === 'admin_required') setErr('Admin access required. Please sign in with an admin account.');
+  }, []);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

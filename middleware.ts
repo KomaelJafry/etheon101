@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/pricing', '/api/auth', '/api/stripe/webhook', '/api/ui']
+const PUBLIC_PATHS = ['/', '/login', '/register', '/pricing', '/auth/callback', '/api/auth', '/api/stripe/webhook', '/api/ui']
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/admin')) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/login?error=admin_required', request.url))
     }
   }
 
