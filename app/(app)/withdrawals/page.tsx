@@ -7,17 +7,29 @@ function Skeleton({ h = 20, w = '100%' }: { h?: number; w?: string }) {
 }
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
+import { useContent } from '../../../hooks/useContent';
+import UnlockProgressCard from '../../../components/UnlockProgressCard';
 
 const MIN_WITHDRAWAL = 0.01;
 const NETWORK_FEE = 0.0005;
 
 export default function WithdrawalsPage() {
-  const { profile, loading } = useApp();
+  const { profile, loading, ethPrice } = useApp();
+  const { get } = useContent(['withdrawal', 'mining']);
   const available = profile?.eth_balance ?? 0;
 
+  const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
+  const depositHref = get('mining', 'deposit_cta_href', '/deposit');
+  const balanceUsd = available * ethPrice;
+  const withdrawalLocked = balanceUsd < withdrawThreshold;
+
   const [amount, setAmount] = useState('0.25');
-  const [address] = useState('0x4aB…91c7E2');
   const [network, setNetwork] = useState('ERC-20');
+
+  const walletAddress = profile?.eth_wallet_address || '';
+  const shortAddress = walletAddress.length > 12
+    ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-6)}`
+    : walletAddress || 'No wallet address set';
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -25,7 +37,7 @@ export default function WithdrawalsPage() {
   const fee = NETWORK_FEE;
   const receive = Math.max(0, amt - fee);
   const threshPct = Math.min(100, (available / MIN_WITHDRAWAL) * 100);
-  const btnActive = amt > fee && amt <= available;
+  const btnActive = !withdrawalLocked && amt > fee && amt <= available && !!walletAddress;
 
   async function handleSubmit() {
     if (!btnActive) return;
@@ -34,7 +46,7 @@ export default function WithdrawalsPage() {
     const res = await fetch('/api/user/withdrawal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount_eth: amt, wallet_address: '0x4aBc91c7E2000000000000000000000000000000' }),
+      body: JSON.stringify({ amount_eth: amt, wallet_address: walletAddress }),
     });
     const json = await res.json();
     if (res.ok) {
@@ -46,18 +58,37 @@ export default function WithdrawalsPage() {
     setSubmitting(false);
   }
 
-  const recentWithdrawals = [
-    { amt: '0.250 ETH', time: '3 days ago', status: 'Done' },
-    { amt: '0.500 ETH', time: '8 days ago', status: 'Done' },
-  ];
 
   return (
-    <div className="resp-grid-2-even" style={{ alignItems: 'start', maxWidth: '1140px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1140px' }}>
+
+      {/* Withdrawal lock notice */}
+      {withdrawalLocked && (
+        <UnlockProgressCard
+          title={get('mining','withdrawal_unlock_title','Withdrawals unlock at $1,000')}
+          body={get('mining','withdrawal_unlock_body',`Build your balance to $${withdrawThreshold.toLocaleString()} to unlock ETH withdrawals. Your rewards are safely accumulating.`)}
+          currentUsd={balanceUsd}
+          targetUsd={withdrawThreshold}
+          ctaLabel="Add funds"
+          ctaHref={depositHref}
+          accentColor="#16D98A"
+        />
+      )}
+
+      <div className="resp-grid-2-even" style={{ alignItems: 'start', minWidth: 0 }}>
 
       {/* FORM */}
-      <div style={{ borderRadius: '26px', padding: '26px 28px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ borderRadius: '26px', padding: '26px 28px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)', minWidth: 0, overflow: 'hidden' }}>
         <div className="sg" style={{ fontWeight: 600, fontSize: '18px' }}>Withdraw ETH</div>
-        <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '3px', marginBottom: '22px' }}>Cash out your earned Ethereum to any wallet.</div>
+        <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '3px', marginBottom: '22px' }}>{get('withdrawal','withdrawal_instructions','Cash out your earned Ethereum to any wallet.')}</div>
+
+        {/* Withdrawal locked banner */}
+        {withdrawalLocked && (
+          <div style={{ padding: '12px 15px', borderRadius: '14px', marginBottom: '18px', background: 'rgba(255,181,92,0.1)', border: '1px solid rgba(255,181,92,0.3)', fontSize: '13px', color: '#FFB55C', display: 'flex', gap: '9px', alignItems: 'flex-start' }}>
+            <Icon name="lock" size={16} color="#FFB55C" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>{get('mining','withdrawal_locked_text',`Withdrawals unlock when your total balance reaches $${withdrawThreshold.toLocaleString()}. Your current balance is $${balanceUsd.toFixed(2)}.`)}</span>
+          </div>
+        )}
 
         {result && (
           <div style={{ padding: '12px 16px', borderRadius: '14px', marginBottom: '18px', background: result.type === 'success' ? 'rgba(22,217,138,0.1)' : 'rgba(255,107,138,0.12)', border: `1px solid ${result.type === 'success' ? 'rgba(22,217,138,0.3)' : 'rgba(255,107,138,0.3)'}`, fontSize: '13.5px', color: result.type === 'success' ? '#16D98A' : '#FF6B8A' }}>
@@ -95,8 +126,9 @@ export default function WithdrawalsPage() {
         <div style={{ fontSize: '12.5px', color: '#A39FB5', fontWeight: 600, marginBottom: '8px' }}>Destination address</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '14px' }}>
           <Icon name="account_balance_wallet" size={19} color="#7E7A8F" style={{ flexShrink: 0 }} />
-          <span className="sg" style={{ flex: 1, fontSize: '14px', color: '#C5C1D6' }}>{address}</span>
-          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#16D98A', background: 'rgba(22,217,138,0.14)', padding: '4px 9px', borderRadius: '999px' }}>Verified</span>
+          <span className="sg" style={{ flex: 1, fontSize: '14px', color: walletAddress ? '#C5C1D6' : '#6F6B82' }}>{shortAddress}</span>
+          {walletAddress && <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#16D98A', background: 'rgba(22,217,138,0.14)', padding: '4px 9px', borderRadius: '999px' }}>Verified</span>}
+          {!walletAddress && <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#FFB55C', background: 'rgba(255,181,92,0.14)', padding: '4px 9px', borderRadius: '999px' }}>Set in Settings</span>}
         </div>
 
         {/* Network selector */}
@@ -115,7 +147,7 @@ export default function WithdrawalsPage() {
       </div>
 
       {/* SUMMARY */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
         {/* Summary card */}
         <div style={{ borderRadius: '26px', padding: '22px 24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -151,24 +183,16 @@ export default function WithdrawalsPage() {
           </div>
         </div>
 
-        {/* Recent withdrawals */}
+        {/* Recent withdrawals — populated from real transaction history on /transactions */}
         <div style={{ borderRadius: '26px', padding: '22px 24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="sg" style={{ fontWeight: 600, fontSize: '16px', marginBottom: '14px' }}>Recent withdrawals</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '13px' }}>
-            {recentWithdrawals.map((w, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '11px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="north_east" size={19} color="#C5C1D6" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700 }}>{w.amt}</div>
-                  <div style={{ fontSize: '11.5px', color: '#7E7A8F' }}>{w.time}</div>
-                </div>
-                <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#16D98A', background: 'rgba(22,217,138,0.14)', padding: '4px 10px', borderRadius: '999px' }}>{w.status}</span>
-              </div>
-            ))}
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#6F6B82', fontSize: '13px' }}>
+            <Icon name="north_east" size={28} color="#3A374F" style={{ marginBottom: '8px' }} />
+            <div>No withdrawals yet</div>
+            <div style={{ fontSize: '12px', marginTop: '4px', color: '#4A4760' }}>Completed withdrawals will appear here.</div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

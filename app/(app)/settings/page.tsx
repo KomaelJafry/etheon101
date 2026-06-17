@@ -24,6 +24,7 @@ export default function SettingsPage() {
   // nameOverride tracks user edits; null means "show profile value" so it stays in sync automatically
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const fullName = nameOverride !== null ? nameOverride : (profile?.full_name ?? '');
+  const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [toggles, setToggles] = useState({
@@ -45,11 +46,19 @@ export default function SettingsPage() {
 
   async function handleSave() {
     setSaving(true); setMsg('');
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', user.id);
-    setMsg(error ? 'Could not save changes.' : 'Changes saved successfully.');
-    if (!error) refreshProfile();
+    const res = await fetch('/api/user/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: fullName }),
+    });
+    const json = await res.json();
+    if (res.ok) {
+      setMsg('Changes saved successfully.');
+      setIsEditing(false);
+      refreshProfile();
+    } else {
+      setMsg(json.error || 'Could not save changes.');
+    }
     setSaving(false);
   }
 
@@ -101,9 +110,15 @@ export default function SettingsPage() {
             {loading ? <Skel h={22} w="140px" /> : <div className="sg" style={{ fontWeight: 600, fontSize: '19px' }}>{profile?.full_name || 'Your name'}</div>}
             <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '2px' }}>{loading ? <Skel h={13} w="180px" /> : `${email} · ${vipLabel} tier`}</div>
           </div>
-          <RippleButton variant="ghost" onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', padding: '0 16px', borderRadius: '999px', fontSize: '13px', color: '#C9BBFF', background: 'rgba(124,92,255,0.14)', cursor: saving ? 'not-allowed' : 'pointer' }}>
-            <Icon name="edit" size={17} color="#C9BBFF" />{saving ? 'Saving…' : 'Edit'}
-          </RippleButton>
+          {isEditing ? (
+            <RippleButton variant="ghost" onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', padding: '0 16px', borderRadius: '999px', fontSize: '13px', color: '#16D98A', background: 'rgba(22,217,138,0.12)', border: '1px solid rgba(22,217,138,0.3)', cursor: saving ? 'not-allowed' : 'pointer' }}>
+              <Icon name="check" size={17} color="#16D98A" />{saving ? 'Saving…' : 'Save'}
+            </RippleButton>
+          ) : (
+            <RippleButton variant="ghost" onClick={() => { setIsEditing(true); setMsg(''); }} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', padding: '0 16px', borderRadius: '999px', fontSize: '13px', color: '#C9BBFF', background: 'rgba(124,92,255,0.14)' }}>
+              <Icon name="edit" size={17} color="#C9BBFF" />Edit
+            </RippleButton>
+          )}
         </div>
 
         {msg && (
@@ -117,7 +132,7 @@ export default function SettingsPage() {
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#A39FB5', marginBottom: '8px' }}>Full name</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '13px 15px', borderRadius: '13px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <Icon name="person" size={19} color="#6F6B82" style={{ flexShrink: 0 }} />
-              <input value={fullName} onChange={e => setNameOverride(e.target.value)} placeholder="Your full name" style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: '#F4F3FA', fontFamily: "'Manrope'", fontSize: '15px' }} />
+              <input value={fullName} onChange={e => setNameOverride(e.target.value)} placeholder="Your full name" readOnly={!isEditing} style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: isEditing ? '#F4F3FA' : '#8A8699', fontFamily: "'Manrope'", fontSize: '15px', cursor: isEditing ? 'text' : 'default' }} />
             </div>
           </div>
           <div>

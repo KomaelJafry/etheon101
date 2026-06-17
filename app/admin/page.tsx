@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../components/Icon';
@@ -37,6 +38,7 @@ function EtheonLogoMark({ size = 22 }: { size?: number }) {
   );
 }
 
+const VIP_TIERS = ['Bronze', 'Silver', 'Gold', 'Platinum'] as const;
 const VIP_LABEL = ['Standard', 'Bronze', 'Silver', 'Gold', 'Platinum'];
 const STAT_CARDS = (users: UserRow[]) => [
   { icon: 'group', label: 'Total users', val: users.length, color: '#7C5CFF', bg: 'rgba(124,92,255,0.14)' },
@@ -79,14 +81,24 @@ export default function AdminPage() {
   async function saveEdit() {
     if (!editUser) return;
     setSaving(true); setSaveMsg('');
-    const res = await fetch('/api/admin/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: editUser.id, updates: { eth_balance: editUser.eth_balance, hashrate_th: editUser.hashrate_th, vip_tier: editUser.vip_tier, mining_status: editUser.mining_status, role: editUser.role, is_active: editUser.is_active } }) });
+    const res = await fetch(`/api/admin/users/${editUser.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eth_balance: editUser.eth_balance,
+        hashrate_th: editUser.hashrate_th,
+        vip_tier: editUser.vip_tier,
+        mining_status: editUser.mining_status,
+        is_active: editUser.is_active,
+      }),
+    });
     const json = await res.json();
     if (res.ok) {
       setUsers(prev => prev.map(u => u.id === editUser.id ? editUser : u));
       setSaveMsg('Saved');
       setTimeout(() => { setSaveMsg(''); setEditUser(null); }, 1200);
     } else {
-      setSaveMsg(json.error || 'Failed');
+      setSaveMsg(json.error || 'Could not save changes.');
     }
     setSaving(false);
   }
@@ -113,6 +125,16 @@ export default function AdminPage() {
             <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '3px' }}>Manage accounts, balances, and miner settings</div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            <Link href="/admin/customers" style={{ textDecoration: 'none' }}>
+              <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>
+                <Icon name="group" size={17} color="#C9BBFF" />Customers
+              </RippleButton>
+            </Link>
+            <a href="/admin/content" style={{ textDecoration: 'none' }}>
+              <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>
+                <Icon name="edit_note" size={17} color="#C9BBFF" />Content
+              </RippleButton>
+            </a>
             <a href="/dashboard" style={{ textDecoration: 'none' }}>
               <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>
                 <Icon name="arrow_back" size={17} color="#C9BBFF" />Back to app
@@ -176,7 +198,7 @@ export default function AdminPage() {
                   {isActive ? 'Active' : 'Paused'}
                 </span>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#C9BBFF', background: 'rgba(124,92,255,0.14)', padding: '5px 10px', borderRadius: '999px', display: 'inline-block' }}>
-                  {VIP_LABEL[Math.min(u.vip_tier || 0, 4)]}
+                  {typeof u.vip_tier === 'string' ? u.vip_tier : VIP_LABEL[Math.min(u.vip_tier || 0, 4)]}
                 </span>
                 <RippleButton variant="ghost" onClick={() => { setEditUser({ ...u }); setSaveMsg(''); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', height: '34px', padding: '0 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, color: '#C9BBFF' }}>
                   <Icon name="edit" size={15} color="#C9BBFF" />Edit
@@ -202,7 +224,6 @@ export default function AdminPage() {
               {([
                 { key: 'eth_balance', label: 'ETH Balance', type: 'number', step: '0.0001' },
                 { key: 'hashrate_th', label: 'Hashrate (TH)', type: 'number', step: '1' },
-                { key: 'vip_tier', label: 'VIP Tier (0-4)', type: 'number', step: '1' },
               ] as { key: keyof UserRow; label: string; type: string; step: string }[]).map(f => (
                 <div key={f.key}>
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#A39FB5', marginBottom: '7px' }}>{f.label}</label>
@@ -215,6 +236,17 @@ export default function AdminPage() {
                   />
                 </div>
               ))}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#A39FB5', marginBottom: '7px' }}>VIP Tier</label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {VIP_TIERS.map(tier => (
+                    <button key={tier} onClick={() => setEditUser(prev => prev ? { ...prev, vip_tier: tier as unknown as number } : null)} style={{ padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12.5px', background: editUser.vip_tier === (tier as unknown as number) ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)', border: `1px solid ${editUser.vip_tier === (tier as unknown as number) ? 'rgba(124,92,255,0.4)' : 'rgba(255,255,255,0.08)'}`, color: editUser.vip_tier === (tier as unknown as number) ? '#C9BBFF' : '#A39FB5' }}>
+                      {tier}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#A39FB5', marginBottom: '7px' }}>Mining status</label>

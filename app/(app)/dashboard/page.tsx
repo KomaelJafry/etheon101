@@ -5,6 +5,8 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useApp } from '../AppContext';
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
+import UnlockProgressCard from '../../../components/UnlockProgressCard';
+import { useContent } from '../../../hooks/useContent';
 
 type Period = '30D' | '90D' | 'All';
 
@@ -50,6 +52,7 @@ function SkeletonCard({ h = 80 }: { h?: number }) {
 
 export default function DashboardPage() {
   const { profile, ethPrice, loading: appLoading } = useApp();
+  const { get } = useContent(['mining']);
   const [txns, setTxns]       = useState<Txn[]>([]);
   const [txLoading, setTxLoading] = useState(true);
   const [liveEth, setLiveEth] = useState(0);
@@ -130,11 +133,19 @@ export default function DashboardPage() {
 
   const isLoading = appLoading;
 
+  const miningThreshold = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
+  const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
+  const depositHref = get('mining', 'deposit_cta_href', '/deposit');
+  const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
+  const isSubscribed = profile?.is_active ?? false;
+  const miningUnlocked = isSubscribed && balanceUsd >= miningThreshold;
+  const withdrawalUnlocked = balanceUsd >= withdrawThreshold;
+
   return (
     <div className="resp-grid-2-lheavy">
 
       {/* LEFT */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'18px' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'18px', minWidth:0 }}>
 
         {/* Balance hero */}
         <div className="anim-slide-up" style={{ position:'relative', overflow:'hidden', borderRadius:'24px', padding:'24px 26px', background:'linear-gradient(160deg,rgba(124,92,255,0.14),rgba(255,255,255,0.02) 60%)', border:'1px solid rgba(255,255,255,0.08)' }}>
@@ -187,7 +198,7 @@ export default function DashboardPage() {
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px', flexWrap:'wrap', gap:'10px' }}>
             <div>
               <div className="sg" style={{ fontWeight:700, fontSize:'16px' }}>Mining earnings</div>
-              <div style={{ fontSize:'12px', color:'#6F6B82', marginTop:'2px' }}>Simulated ETH accumulated over time</div>
+              <div style={{ fontSize:'12px', color:'#6F6B82', marginTop:'2px' }}>Rewards accumulated over time</div>
             </div>
             <div style={{ display:'flex', gap:'2px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'999px', padding:'3px' }}>
               {(['30D', '90D', 'All'] as Period[]).map((t) => (
@@ -255,7 +266,7 @@ export default function DashboardPage() {
       </div>
 
       {/* RIGHT */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'18px' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'18px', minWidth:0 }}>
 
         {/* Mining status */}
         <div className="anim-slide-up" style={{ position:'relative', overflow:'hidden', borderRadius:'24px', padding:'22px', background:'linear-gradient(170deg,rgba(124,92,255,0.12),rgba(11,10,20,0.5))', border:'1px solid rgba(255,255,255,0.08)' }}>
@@ -319,6 +330,31 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+
+        {/* Mining unlock progress */}
+        <UnlockProgressCard
+          title={get('mining','mining_unlock_title','Unlock Rewards Mining')}
+          body={get('mining','mining_unlock_body',`Reach $${miningThreshold} balance and subscribe to start earning daily rewards.`)}
+          currentUsd={balanceUsd}
+          targetUsd={miningThreshold}
+          ctaLabel={!isSubscribed ? 'Subscribe to unlock' : get('mining','mining_unlock_cta_label','Add funds to unlock')}
+          ctaHref={!isSubscribed ? '/api/stripe/checkout' : depositHref}
+          unlocked={miningUnlocked}
+          unlockedLabel={get('mining','mining_ready_text','Mining active')}
+        />
+
+        {/* Withdrawal unlock progress */}
+        <UnlockProgressCard
+          title={get('mining','withdrawal_unlock_title','Withdrawal Unlock Progress')}
+          body={get('mining','withdrawal_unlock_body',`Withdrawals unlock at $${withdrawThreshold.toLocaleString()} total balance.`)}
+          currentUsd={balanceUsd}
+          targetUsd={withdrawThreshold}
+          ctaLabel={withdrawalUnlocked ? get('mining','withdrawal_unlock_cta_label','Request withdrawal') : 'Build your balance'}
+          ctaHref={withdrawalUnlocked ? '/withdrawals' : depositHref}
+          unlocked={withdrawalUnlocked}
+          unlockedLabel="Withdrawals unlocked"
+          accentColor="#16D98A"
+        />
 
         {/* VIP status — 5 tiers: Standard Bronze Silver Gold Platinum */}
         <div style={{ borderRadius:'24px', padding:'20px 22px', background:'linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))', border:'1px solid rgba(255,255,255,0.07)' }}>

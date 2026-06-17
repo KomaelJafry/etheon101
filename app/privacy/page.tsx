@@ -1,16 +1,22 @@
-﻿import Link from 'next/link';
+'use client';
+import Link from 'next/link';
+import { useContent } from '../../hooks/useContent';
 
 function EtheonLogo() {
   return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
       <polygon points="12,3 22,21 2,21" fill="white" />
     </svg>
   );
 }
 
 export default function PrivacyPage() {
+  const { get } = useContent(['legal']);
+  const email = get('global', 'support_email', 'legal@etheon.io');
+  const intro = get('legal', 'privacy_intro', 'We are preparing a comprehensive privacy policy that explains how we collect, use, and protect your data. It will be published here before our official launch.');
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0B0A14', color: '#F4F3FA', fontFamily: "'Manrope', system-ui, sans-serif', display: 'flex', flexDirection: 'column" }}>
+    <div style={{ minHeight: '100vh', background: '#0B0A14', color: '#F4F3FA', fontFamily: "'Manrope', system-ui, sans-serif", display: 'flex', flexDirection: 'column' }}>
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '900px', margin: '0 auto', padding: '22px 32px', width: '100%' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -34,13 +40,14 @@ export default function PrivacyPage() {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '22px', marginBottom: '10px' }}>Privacy Policy coming soon</div>
-              <div style={{ fontSize: '15px', color: '#8A8699', lineHeight: 1.6, maxWidth: '420px' }}>We are preparing a comprehensive privacy policy that explains how we collect, use, and protect your data. It will be published here before our official launch.</div>
+              <div style={{ fontSize: '15px', color: '#8A8699', lineHeight: 1.6, maxWidth: '420px' }}>{intro}</div>
             </div>
           </div>
         </div>
 
         <div style={{ marginTop: '32px', padding: '20px 24px', borderRadius: '18px', background: 'rgba(124,92,255,0.08)', border: '1px solid rgba(124,92,255,0.18)', fontSize: '14px', color: '#B9B4CC', lineHeight: 1.6 }}>
-          For questions, email us at <a href="mailto:legal@etheon.io" style={{ color: '#C9BBFF', fontWeight: 600 }}>legal@etheon.io</a>
+          For questions, email us at{' '}
+          <a href={`mailto:${email}`} style={{ color: '#C9BBFF', fontWeight: 600 }}>{email}</a>
         </div>
       </main>
     </div>

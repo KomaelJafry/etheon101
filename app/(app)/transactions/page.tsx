@@ -78,7 +78,23 @@ export default function TransactionsPage() {
             </RippleButton>
           ))}
         </div>
-        <RippleButton variant="ghost" style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '40px', padding: '0 16px', borderRadius: '999px', fontSize: '13px', color: '#C5C1D6' }}>
+        <RippleButton variant="ghost" onClick={() => {
+          if (!txns.length) return;
+          const rows = [['Date','Type','Amount ETH','Status','Description']];
+          txns.forEach(t => rows.push([
+            new Date(t.created_at).toISOString().slice(0,10),
+            t.type,
+            t.amount_eth.toString(),
+            t.status,
+            t.description || '',
+          ]));
+          const csv = rows.map(r => r.map(v => `"${v.replace(/"/g,'""')}"`).join(',')).join('\n');
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'etheon-transactions.csv'; a.click();
+          URL.revokeObjectURL(url);
+        }} style={{ display: 'flex', alignItems: 'center', gap: '7px', height: '40px', padding: '0 16px', borderRadius: '999px', fontSize: '13px', color: '#C5C1D6' }}>
           <Icon name="download" size={18} color="#C5C1D6" />Export CSV
         </RippleButton>
       </div>

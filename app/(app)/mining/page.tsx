@@ -1,8 +1,11 @@
-﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import { useApp } from '../AppContext';
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
+import MiningMascot, { MascotState } from '../../../components/MiningMascot';
+import UnlockProgressCard from '../../../components/UnlockProgressCard';
+import { useContent } from '../../../hooks/useContent';
 
 const ETH_RATE = 0.000000032;
 const fmt = (n: number, d = 6) => n.toFixed(d);
@@ -15,10 +18,19 @@ const PRESETS = [
 
 export default function MiningPage() {
   const { profile, ethPrice } = useApp();
+  const { get } = useContent(['mining']);
   const cap = profile?.hashrate_capacity_th || 500;
 
-  // Local state for controls — backend has no mining toggle endpoint,
-  // so these are optimistic UI states initialized from profile.
+  const miningThreshold = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
+  const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
+  const dailyRewardUsd = get('mining', 'mining_daily_reward_usd', '20');
+  const poolName = get('mining', 'pool_name', 'Etheon Rewards Pool');
+
+  const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
+  const isSubscribed = profile?.is_active ?? false;
+  const hasMinBalance = balanceUsd >= miningThreshold;
+  const isEligible = isSubscribed && hasMinBalance;
+
   const [isActiveLive, setIsActiveLive] = useState(false);
   const [localHashrate, setLocalHashrate] = useState(0);
   const [sessionEth, setSessionEth] = useState(0);
@@ -27,7 +39,6 @@ export default function MiningPage() {
   const [activePreset, setActivePreset] = useState(1);
   const bigC = 2 * Math.PI * 120;
 
-  // Initialize from backend profile once loaded
   useEffect(() => {
     if (!profile) return;
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -39,7 +50,6 @@ export default function MiningPage() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Gauge wobble animation
   useEffect(() => {
     if (!isActiveLive) return;
     let cur = (localHashrate / (cap || 100)) * 100;
@@ -48,9 +58,8 @@ export default function MiningPage() {
       setGaugeOffset(bigC * (1 - cur / 100));
     }, 120);
     return () => clearInterval(id);
-  }, [isActiveLive, localHashrate, cap]); // eslint-disable-line react-hooks/exhaustive-deps -- bigC is a constant
+  }, [isActiveLive, localHashrate, cap]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Session ETH counter — only runs when active
   useEffect(() => {
     if (!isActiveLive || localHashrate <= 0) return;
     const id = setInterval(() => {
@@ -62,11 +71,9 @@ export default function MiningPage() {
   }, [isActiveLive, localHashrate]);
 
   function toggleMining() {
+    if (!isEligible) return;
     setIsActiveLive(v => !v);
-    if (isActiveLive) {
-      // Pausing — freeze gauge
-      setGaugeOffset(bigC * (1 - (localHashrate / (cap || 100))));
-    }
+    if (isActiveLive) setGaugeOffset(bigC * (1 - (localHashrate / (cap || 100))));
   }
 
   function adjustHashrate(delta: number) {
@@ -94,9 +101,20 @@ export default function MiningPage() {
   const monthlyEth = fmt(hashrate * ETH_RATE * 86400 * 30);
   const monthlyUsd = (hashrate * ETH_RATE * 86400 * 30 * ethPrice).toFixed(2);
 
+  const depositHref = get('mining', 'deposit_cta_href', '/deposit');
+  const withdrawalLocked = balanceUsd < withdrawThreshold;
+
+  const mascotState: MascotState = !isEligible
+    ? 'locked'
+    : sessionPct >= 99
+    ? 'complete'
+    : isActiveLive
+    ? 'active'
+    : 'ready';
+
   const miners = [
-    { name: 'Etheon Rig Alpha',  sub: `Antares ASIC · ${Math.round(cap * 0.6)} TH`, status: isActiveLive ? 'Mining' : 'Offline', sColor: isActiveLive?'#16D98A':'#FF6B8A', sBg: isActiveLive?'rgba(22,217,138,0.14)':'rgba(255,107,138,0.14)' },
-    { name: 'Quantum Core S2',   sub: `Hydro-cooled · ${Math.round(cap * 0.4)} TH`,  status: isActiveLive ? 'Mining' : 'Offline', sColor: isActiveLive?'#16D98A':'#FF6B8A', sBg: isActiveLive?'rgba(22,217,138,0.14)':'rgba(255,107,138,0.14)' },
+    { name: 'Etheon Rig Alpha',  sub: `Antares ASIC · ${Math.round(cap * 0.6)} TH`, status: isActiveLive ? 'Active' : 'Offline', sColor: isActiveLive?'#16D98A':'#FF6B8A', sBg: isActiveLive?'rgba(22,217,138,0.14)':'rgba(255,107,138,0.14)' },
+    { name: 'Quantum Core S2',   sub: `Hydro-cooled · ${Math.round(cap * 0.4)} TH`,  status: isActiveLive ? 'Active' : 'Offline', sColor: isActiveLive?'#16D98A':'#FF6B8A', sBg: isActiveLive?'rgba(22,217,138,0.14)':'rgba(255,107,138,0.14)' },
     { name: 'Boost Pack Alpha',  sub: '0 TH · Reserved',                               status: 'Standby',  sColor: '#FFB55C', sBg: 'rgba(255,181,92,0.14)' },
   ];
 
@@ -111,7 +129,41 @@ export default function MiningPage() {
     <div className="resp-grid-2-mining">
 
       {/* LEFT */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'18px' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'18px', minWidth:0 }}>
+
+        {/* Eligibility gate */}
+        {!isEligible && (
+          <div style={{ borderRadius:'22px', padding:'20px 22px', background:'linear-gradient(160deg,rgba(255,107,138,0.1),rgba(255,255,255,0.02))', border:'1px solid rgba(255,107,138,0.25)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
+              <Icon name="lock" size={20} color="#FF6B8A" />
+              <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'15px', color:'#FF6B8A' }}>Rewards mining locked</span>
+            </div>
+            {!isSubscribed ? (
+              <>
+                <div style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, marginBottom:'14px' }}>
+                  {get('mining','mining_locked_subscription_text','An active plan is required to start rewards mining. Subscribe to unlock your daily session.')}
+                </div>
+                <a href="/api/stripe/checkout" style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'12px', borderRadius:'13px', background:'#7C5CFF', color:'#fff', fontWeight:700, fontSize:'13.5px', textDecoration:'none', boxShadow:'0 6px 18px rgba(124,92,255,0.4)' }}>
+                  Subscribe to unlock mining
+                </a>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, marginBottom:'10px' }}>
+                  {get('mining','mining_locked_balance_text',`Deposit at least $${miningThreshold} to activate rewards mining.`)}
+                </div>
+                <UnlockProgressCard
+                  title="Deposit to unlock mining"
+                  body={`Reach $${miningThreshold} balance to start earning daily rewards.`}
+                  currentUsd={balanceUsd}
+                  targetUsd={miningThreshold}
+                  ctaLabel="Add funds"
+                  ctaHref={depositHref}
+                />
+              </>
+            )}
+          </div>
+        )}
 
         {/* Gauge hero */}
         <div className="anim-slide-up" style={{ position:'relative', overflow:'hidden', borderRadius:'26px', padding:'26px 28px 28px', background:'linear-gradient(165deg,rgba(124,92,255,0.14),rgba(11,10,20,0.6) 65%)', border:'1px solid rgba(255,255,255,0.08)' }}>
@@ -120,7 +172,7 @@ export default function MiningPage() {
           <div style={{ position:'relative', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
             <div>
               <div className="sg" style={{ fontWeight:700, fontSize:'18px' }}>Mining farm</div>
-              <div style={{ fontSize:'12.5px', color:'#6F6B82', marginTop:'2px' }}>Etheon Pool · ETH-Sim v3</div>
+              <div style={{ fontSize:'12.5px', color:'#6F6B82', marginTop:'2px' }}>{poolName}</div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:'7px', background:isActiveLive?'rgba(22,217,138,0.1)':'rgba(255,107,138,0.1)', border:`1px solid ${isActiveLive?'rgba(22,217,138,0.25)':'rgba(255,107,138,0.25)'}`, padding:'7px 14px', borderRadius:'999px' }}>
               <span className={isActiveLive?'anim-pulse':''} style={{ width:'7px', height:'7px', borderRadius:'50%', background:isActiveLive?'#16D98A':'#FF6B8A', boxShadow:`0 0 8px ${isActiveLive?'#16D98A':'#FF6B8A'}`, display:'inline-block' }} />
@@ -128,41 +180,49 @@ export default function MiningPage() {
             </div>
           </div>
 
-          <div style={{ position:'relative', width:'280px', height:'280px', margin:'10px auto 4px' }}>
-            <svg viewBox="0 0 300 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%', animation:'etheonSpin 22s linear infinite', opacity:0.4 }}>
-              <circle cx="150" cy="150" r="142" fill="none" stroke="rgba(124,92,255,0.35)" strokeWidth="1.5" strokeDasharray="2 10" strokeLinecap="round" />
-            </svg>
-            <div style={{ position:'absolute', inset:'32px', borderRadius:'50%', background:'radial-gradient(circle,rgba(124,92,255,0.28),transparent 68%)', animation:'etheonGlowBreathe 4s ease-in-out infinite' }} />
-            <svg viewBox="0 0 300 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%', transform:'rotate(-90deg)' }}>
-              <defs>
-                <linearGradient id="mineRingBig" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#b39bff" />
-                  <stop offset="0.5" stopColor="#7C5CFF" />
-                  <stop offset="1" stopColor="#6e8bff" />
-                </linearGradient>
-              </defs>
-              <circle cx="150" cy="150" r="120" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="13" />
-              <circle cx="150" cy="150" r="120" fill="none" stroke={isActiveLive?"url(#mineRingBig)":"rgba(255,107,138,0.5)"} strokeWidth="13" strokeLinecap="round"
-                strokeDasharray={bigC.toFixed(1)} strokeDashoffset={gaugeOffset.toFixed(1)}
-                style={{ transition:'stroke-dashoffset .5s ease, stroke .5s ease', filter:'drop-shadow(0 0 10px rgba(124,92,255,0.7))' }} />
-            </svg>
-            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-              <div style={{ fontSize:'11px', color:'#A39FB5', fontWeight:700, letterSpacing:'0.06em' }}>HASHRATE</div>
-              <div style={{ display:'flex', alignItems:'baseline', gap:'5px', marginTop:'3px' }}>
-                <span className="sg" style={{ fontWeight:700, fontSize:'48px', letterSpacing:'-0.03em', lineHeight:1 }}>{hashrate.toFixed(1)}</span>
-                <span style={{ fontSize:'15px', color:'#8A8699', fontWeight:600 }}>TH/s</span>
-              </div>
-              <div style={{ marginTop:'12px', paddingTop:'12px', borderTop:'1px solid rgba(255,255,255,0.1)', width:'130px', textAlign:'center' }}>
-                <div style={{ fontSize:'10px', color:'#8A8699', fontWeight:700, letterSpacing:'0.05em' }}>SESSION EARNED</div>
-                <div className="sg" style={{ fontWeight:700, fontSize:'20px', color:'#16D98A', marginTop:'3px', letterSpacing:'-0.01em' }}>{fmt(sessionEth)}</div>
-                <div style={{ fontSize:'11.5px', color:'#6F6B82', marginTop:'1px' }}>ETH · ${sessionUsd}</div>
+          {/* Mascot + Gauge layout */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', flexWrap:'wrap' }}>
+            <MiningMascot
+              state={mascotState}
+              sessionPct={sessionPct}
+              pendingRewardUsd={sessionPct >= 99 ? `$${dailyRewardUsd}` : undefined}
+            />
+            <div style={{ position:'relative', width:'220px', height:'220px', flexShrink:0 }}>
+              <svg viewBox="0 0 300 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%', animation:'etheonSpin 22s linear infinite', opacity:0.4 }}>
+                <circle cx="150" cy="150" r="142" fill="none" stroke="rgba(124,92,255,0.35)" strokeWidth="1.5" strokeDasharray="2 10" strokeLinecap="round" />
+              </svg>
+              <div style={{ position:'absolute', inset:'32px', borderRadius:'50%', background:'radial-gradient(circle,rgba(124,92,255,0.28),transparent 68%)', animation:'etheonGlowBreathe 4s ease-in-out infinite' }} />
+              <svg viewBox="0 0 300 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%', transform:'rotate(-90deg)' }}>
+                <defs>
+                  <linearGradient id="mineRingBig" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#b39bff" />
+                    <stop offset="0.5" stopColor="#7C5CFF" />
+                    <stop offset="1" stopColor="#6e8bff" />
+                  </linearGradient>
+                </defs>
+                <circle cx="150" cy="150" r="120" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="13" />
+                <circle cx="150" cy="150" r="120" fill="none" stroke={isActiveLive?"url(#mineRingBig)":"rgba(255,107,138,0.5)"} strokeWidth="13" strokeLinecap="round"
+                  strokeDasharray={bigC.toFixed(1)} strokeDashoffset={gaugeOffset.toFixed(1)}
+                  style={{ transition:'stroke-dashoffset .5s ease, stroke .5s ease', filter:'drop-shadow(0 0 10px rgba(124,92,255,0.7))' }} />
+              </svg>
+              <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                <div style={{ fontSize:'11px', color:'#A39FB5', fontWeight:700, letterSpacing:'0.06em' }}>HASHRATE</div>
+                <div style={{ display:'flex', alignItems:'baseline', gap:'5px', marginTop:'3px' }}>
+                  <span className="sg" style={{ fontWeight:700, fontSize:'36px', letterSpacing:'-0.03em', lineHeight:1 }}>{hashrate.toFixed(1)}</span>
+                  <span style={{ fontSize:'13px', color:'#8A8699', fontWeight:600 }}>TH/s</span>
+                </div>
+                <div style={{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(255,255,255,0.1)', width:'110px', textAlign:'center' }}>
+                  <div style={{ fontSize:'10px', color:'#8A8699', fontWeight:700, letterSpacing:'0.05em' }}>SESSION EARNED</div>
+                  <div className="sg" style={{ fontWeight:700, fontSize:'18px', color:'#16D98A', marginTop:'3px', letterSpacing:'-0.01em' }}>{fmt(sessionEth)}</div>
+                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>ETH · ${sessionUsd}</div>
+                </div>
               </div>
             </div>
           </div>
 
           <div style={{ position:'relative', marginTop:'4px' }}>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', marginBottom:'8px', fontWeight:600 }}>
-              <span style={{ color:'#A39FB5' }}>Next reward payout</span>
+              <span style={{ color:'#A39FB5' }}>Session progress</span>
               <span className="sg" style={{ color:'#C9BBFF' }}>{sessionPct.toFixed(0)}%</span>
             </div>
             <div style={{ height:'7px', borderRadius:'999px', background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
@@ -170,11 +230,22 @@ export default function MiningPage() {
             </div>
           </div>
 
-          <RippleButton variant={isActiveLive ? 'pause' : 'purple'} onClick={toggleMining}
-            style={{ width:'100%', marginTop:'18px', display:'flex', alignItems:'center', justifyContent:'center', gap:'9px', fontSize:'15px', padding:'15px', borderRadius:'15px', ...(isActiveLive ? {} : { boxShadow:'0 8px 26px rgba(124,92,255,0.45)' }) }}>
+          <RippleButton
+            variant={isActiveLive ? 'pause' : 'purple'}
+            onClick={toggleMining}
+            disabled={!isEligible}
+            style={{ width:'100%', marginTop:'18px', display:'flex', alignItems:'center', justifyContent:'center', gap:'9px', fontSize:'15px', padding:'15px', borderRadius:'15px', cursor: isEligible ? 'pointer' : 'not-allowed', opacity: isEligible ? 1 : 0.5, ...(isActiveLive ? {} : { boxShadow: isEligible ? '0 8px 26px rgba(124,92,255,0.45)' : 'none' }) }}>
             <Icon name={isActiveLive ? 'pause' : 'play_arrow'} size={20} color={isActiveLive ? '#FF8DA3' : '#fff'} />
-            {isActiveLive ? 'Pause mining' : 'Start mining'}
+            {isActiveLive ? 'Pause session' : isEligible ? get('mining','mining_ready_text','Start rewards session') : 'Requirements not met'}
           </RippleButton>
+
+          {/* Withdrawal lock notice */}
+          {withdrawalLocked && isEligible && (
+            <div style={{ marginTop:'12px', padding:'10px 13px', borderRadius:'12px', background:'rgba(255,181,92,0.08)', border:'1px solid rgba(255,181,92,0.2)', fontSize:'12px', color:'#FFB55C', display:'flex', gap:'8px', alignItems:'flex-start' }}>
+              <Icon name="info" size={16} color="#FFB55C" style={{ flexShrink:0, marginTop:'1px' }} />
+              {get('mining','withdrawal_locked_text',`Rewards remain pending until your total balance reaches $${withdrawThreshold.toLocaleString()}. Keep mining to unlock withdrawals.`)}
+            </div>
+          )}
         </div>
 
         {/* Stat tiles */}
@@ -192,7 +263,7 @@ export default function MiningPage() {
       </div>
 
       {/* RIGHT */}
-      <div style={{ display:'flex', flexDirection:'column', gap:'18px' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'18px', minWidth:0 }}>
 
         {/* Power allocation */}
         <div className="anim-slide-up" style={{ borderRadius:'24px', padding:'22px', background:'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border:'1px solid rgba(255,255,255,0.07)' }}>
@@ -250,17 +321,30 @@ export default function MiningPage() {
           </div>
           <div style={{ marginTop:'12px', padding:'10px 12px', borderRadius:'12px', background:'rgba(255,181,92,0.08)', border:'1px solid rgba(255,181,92,0.2)', fontSize:'12px', color:'#FFB55C', display:'flex', gap:'8px', alignItems:'flex-start' }}>
             <Icon name="info" size={16} color="#FFB55C" style={{ flexShrink:0, marginTop:'1px' }} />
-            Estimates are based on current hashrate and simulated network difficulty. Actual results vary.
+            Reward estimates are based on your allocated hashrate and current network conditions. Actual results may vary. Rewards are credited as pending until withdrawal requirements are met.
           </div>
         </div>
+
+        {/* Withdrawal progress */}
+        <UnlockProgressCard
+          title="Withdrawal unlock progress"
+          body={`Withdrawals unlock at $${withdrawThreshold.toLocaleString()} total balance. Keep mining to reach your goal.`}
+          currentUsd={balanceUsd}
+          targetUsd={withdrawThreshold}
+          ctaLabel={withdrawalLocked ? 'Add funds' : 'Request withdrawal'}
+          ctaHref={withdrawalLocked ? depositHref : '/withdrawals'}
+          unlocked={!withdrawalLocked}
+          unlockedLabel="Withdrawals unlocked"
+          accentColor="#16D98A"
+        />
 
         {/* Your miners */}
         <div style={{ borderRadius:'24px', padding:'22px', background:'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
-            <div className="sg" style={{ fontWeight:700, fontSize:'15px' }}>Your miners</div>
-            <RippleButton variant="ghost" style={{ display:'flex', alignItems:'center', gap:'5px', height:'32px', padding:'0 12px', borderRadius:'999px', fontSize:'12.5px', color:'#C9BBFF' }}>
-              <Icon name="add" size={15} color="#C9BBFF" />Add
-            </RippleButton>
+            <div className="sg" style={{ fontWeight:700, fontSize:'15px' }}>Your rigs</div>
+            <div title="Contact support to add more rigs" style={{ display:'flex', alignItems:'center', gap:'5px', height:'32px', padding:'0 12px', borderRadius:'999px', fontSize:'12.5px', color:'#6F6B82', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', cursor:'not-allowed', userSelect:'none' }}>
+              <Icon name="add" size={15} color="#6F6B82" />Add
+            </div>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
             {miners.map(m => (
@@ -275,6 +359,9 @@ export default function MiningPage() {
                 <span style={{ fontSize:'11.5px', fontWeight:700, color:m.sColor, background:m.sBg, padding:'5px 10px', borderRadius:'999px', flexShrink:0 }}>{m.status}</span>
               </div>
             ))}
+          </div>
+          <div style={{ marginTop:'12px', fontSize:'11.5px', color:'#4A4763', textAlign:'center' }}>
+            To add more rigs to your account, contact support.
           </div>
         </div>
       </div>

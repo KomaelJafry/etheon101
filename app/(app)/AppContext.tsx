@@ -11,6 +11,7 @@ export interface AppProfile {
   mining_status: string;
   vip_tier: number;
   is_active: boolean;
+  eth_wallet_address?: string;
 }
 
 interface AppCtx {
@@ -37,7 +38,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('profiles')
-      .select('id,full_name,eth_balance,hashrate_th,hashrate_capacity_th,mining_status,vip_tier,is_active')
+      .select('id,full_name,eth_balance,hashrate_th,hashrate_capacity_th,mining_status,vip_tier,is_active,eth_wallet_address')
       .eq('id', user.id)
       .single();
     if (data) setProfile(data);

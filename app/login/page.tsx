@@ -5,6 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
+import { useContent } from '../../hooks/useContent';
 
 function EtheonLogo({ size = 22 }: { size?: number }) {
   return (
@@ -38,6 +39,7 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,11 +64,24 @@ export default function LoginPage() {
     setLoading(false);
   }
 
+  const { get } = useContent(['auth']);
   const isLogin = tab === 'login';
 
   function switchTab(t: 'login' | 'signup') {
     setTab(t);
     setErr('');
+    setForgotMsg('');
+  }
+
+  async function handleForgotPassword() {
+    if (!email) { setErr('Enter your email address above, then click "Forgot password".'); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined,
+    });
+    setLoading(false);
+    if (error) { setErr('Could not send reset email. Please try again.'); }
+    else { setForgotMsg('Check your inbox for a password reset link.'); }
   }
 
   return (
@@ -89,10 +104,10 @@ export default function LoginPage() {
         </div>
 
         <div style={{ position: 'relative' }}>
-          <div style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: 'clamp(26px,3.5vw,38px)', lineHeight: 1.1, letterSpacing: '-0.03em', maxWidth: '420px' }}>The simplest way to mine Ethereum.</div>
-          <p style={{ fontSize: '16px', color: '#A39FB5', lineHeight: 1.6, marginTop: '18px', maxWidth: '400px' }}>No rigs to buy, no power bills to pay. Allocate hashrate and watch your rewards climb in real time.</p>
+          <div style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: 'clamp(26px,3.5vw,38px)', lineHeight: 1.1, letterSpacing: '-0.03em', maxWidth: '420px' }}>{get('auth', 'brand_panel_headline', 'The simplest way to mine Ethereum.')}</div>
+          <p style={{ fontSize: '16px', color: '#A39FB5', lineHeight: 1.6, marginTop: '18px', maxWidth: '400px' }}>{get('auth', 'brand_panel_subtext', 'No rigs to buy, no power bills to pay. Allocate hashrate and watch your rewards climb in real time.')}</p>
           <div style={{ display: 'flex', gap: '30px', marginTop: '34px', flexWrap: 'wrap' }}>
-            {[['5M+', 'Active miners'], ['99.98%', 'Uptime'], ['$0', 'Hardware']].map(([val, label]) => (
+            {[['5M+', 'Active miners'], ['99.98%', 'Uptime'], ['$0', 'Setup fee']].map(([val, label]) => (
               <div key={label}>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '30px', background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{val}</div>
                 <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '3px' }}>{label}</div>
@@ -103,15 +118,15 @@ export default function LoginPage() {
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '11px', padding: '16px', borderRadius: '18px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', maxWidth: '400px' }}>
           <Icon name="verified_user" size={22} color="#16D98A" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '13px', color: '#B9B4CC', lineHeight: 1.5 }}>Bank-grade encryption · 2FA on every account · cold-storage custody</span>
+          <span style={{ fontSize: '13px', color: '#B9B4CC', lineHeight: 1.5 }}>{get('auth','security_badge_text','Bank-grade encryption · 2FA on every account · cold-storage custody')}</span>
         </div>
       </div>
 
       {/* Form panel */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0 30px 30px 0', padding: '48px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.08)', borderLeft: 'none', zIndex: 1 }}>
         <div style={{ width: '100%', maxWidth: '380px' }}>
-          <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: '30px', letterSpacing: '-0.02em' }}>{isLogin ? 'Welcome back' : 'Create account'}</h2>
-          <p style={{ fontSize: '14.5px', color: '#8A8699', margin: '8px 0 26px' }}>{isLogin ? 'Sign in to your Etheon account.' : 'Start earning Ethereum today.'}</p>
+          <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: '30px', letterSpacing: '-0.02em' }}>{isLogin ? get('auth','login_headline','Welcome back') : get('auth','signup_headline','Create account')}</h2>
+          <p style={{ fontSize: '14.5px', color: '#8A8699', margin: '8px 0 26px' }}>{isLogin ? get('auth','login_subtext','Sign in to your Etheon account.') : get('auth','signup_subtext','Start earning Ethereum today.')}</p>
 
           {/* Tab toggle */}
           <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '4px', marginBottom: '24px' }}>
@@ -119,14 +134,26 @@ export default function LoginPage() {
             <RippleButton variant="none" onClick={() => switchTab('signup')} className={!isLogin ? 'anim-tab-slide' : ''} style={{ flex: 1, padding: '11px', borderRadius: '11px', border: 'none', fontFamily: "'Manrope', sans-serif", fontWeight: 700, fontSize: '14px', transition: 'all .18s ease', background: !isLogin ? '#fff' : 'transparent', color: !isLogin ? '#0B0A14' : '#8A8699' }}>Sign up</RippleButton>
           </div>
 
-          {/* Social buttons */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '22px' }}>
-            <RippleButton variant="ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '13px', fontSize: '13.5px', fontWeight: 700, color: '#E9E7F2' }}>
-              <Icon name="mail" size={18} color="#E9E7F2" />Google
-            </RippleButton>
-            <RippleButton variant="ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '13px', fontSize: '13.5px', fontWeight: 700, color: '#E9E7F2' }}>
-              <Icon name="account_balance_wallet" size={18} color="#E9E7F2" />Wallet
-            </RippleButton>
+          {/* Google sign-in */}
+          <button
+            type="button"
+            onClick={async () => {
+              setLoading(true); setErr('');
+              const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: `${window.location.origin}/auth/callback` },
+              });
+              if (error) { setErr('Google sign-in failed. Please try again.'); setLoading(false); }
+            }}
+            disabled={loading}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '13px', borderRadius: '13px', marginBottom: '10px', fontSize: '14px', fontWeight: 700, color: '#E9E7F2', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M17.64 9.2a10.34 10.34 0 0 0-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92A8.78 8.78 0 0 0 17.64 9.2Z" fill="#4285F4"/><path d="M9 18a8.6 8.6 0 0 0 5.96-2.18l-2.92-2.26A5.43 5.43 0 0 1 9 14.8a5.4 5.4 0 0 1-5.08-3.73H.92v2.34A9 9 0 0 0 9 18Z" fill="#34A853"/><path d="M3.92 11.07A5.41 5.41 0 0 1 3.64 9c0-.72.12-1.42.28-2.07V4.59H.92A9 9 0 0 0 0 9c0 1.45.35 2.82.92 4.05l3-2.34-.28-.64Z" fill="#FBBC05"/><path d="M9 3.58a4.86 4.86 0 0 1 3.44 1.34l2.58-2.58A8.64 8.64 0 0 0 9 0 9 9 0 0 0 .92 4.59l3 2.34A5.4 5.4 0 0 1 9 3.58Z" fill="#EA4335"/></svg>
+            Continue with Google
+          </button>
+          {/* Wallet connect — coming soon */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '13px', marginBottom: '22px', fontSize: '13.5px', fontWeight: 700, color: '#4A4763', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'default' }} title="Wallet connect coming soon">
+            <Icon name="account_balance_wallet" size={18} color="#4A4763" />Wallet connect — coming soon
           </div>
 
           {/* Divider */}
@@ -168,8 +195,11 @@ export default function LoginPage() {
             </div>
 
             {isLogin && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '22px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#C9BBFF', cursor: 'pointer' }}>Forgot password?</span>
+              <div style={{ marginBottom: '22px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <span onClick={handleForgotPassword} style={{ fontSize: '13px', fontWeight: 600, color: '#C9BBFF', cursor: 'pointer' }}>Forgot password?</span>
+                </div>
+                {forgotMsg && <div style={{ marginTop: '10px', padding: '10px 13px', borderRadius: '11px', background: 'rgba(22,217,138,0.1)', border: '1px solid rgba(22,217,138,0.3)', fontSize: '13px', color: '#16D98A' }}>{forgotMsg}</div>}
               </div>
             )}
             {!isLogin && <div style={{ marginBottom: '22px' }} />}

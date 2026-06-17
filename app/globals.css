@@ -173,6 +173,8 @@ html, body {
 @keyframes tabSlide { from { opacity:0; transform:translateX(8px); } to { opacity:1; transform:translateX(0); } }
 .anim-tab-slide { animation: tabSlide 0.22s ease both; }
 
+@keyframes toastIn { from { opacity:0; transform:translateY(10px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+
 /* Notification badge sits above ripple wave */
 .notif-badge { position:absolute; top:8px; right:9px; width:7px; height:7px; border-radius:50%; background:#FF6B8A; border:1.5px solid #0D0C1A; z-index:10; pointer-events:none; }
 
@@ -192,6 +194,9 @@ html, body {
 .resp-grid-3        { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
 .resp-grid-4        { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
 .resp-grid-stats    { display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
+/* Prevent grid blowout on mobile — grid children default min-width:auto which overrides 1fr */
+.resp-grid-2-lheavy > *, .resp-grid-2-even > *, .resp-grid-2-mining > *,
+.resp-grid-3 > *, .resp-grid-4 > *, .resp-grid-stats > * { min-width: 0; }
 
 /* App shell */
 .app-shell { display:flex; height:100vh; background:#0D0C1A; color:#F4F3FA; overflow:hidden; font-family:'Manrope',system-ui,sans-serif; }

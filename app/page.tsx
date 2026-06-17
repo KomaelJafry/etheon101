@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Icon from '../components/Icon';
 import RippleButton from '../components/RippleButton';
+import { useContent } from '../hooks/useContent';
 
 const CIRC = 2 * Math.PI * 52;
 
@@ -15,6 +16,7 @@ function EtheonLogo({ size = 22 }: { size?: number }) {
 }
 
 export default function LandingPage() {
+  const { get } = useContent(['landing']);
   const [gaugeOffset, setGaugeOffset] = useState(CIRC * 0.35);
   const [sessionEth, setSessionEth] = useState(0.00812);
   const [ethPrice] = useState(3284);
@@ -40,23 +42,24 @@ export default function LandingPage() {
         {/* NAV */}
         <nav className="landing-nav">
           <div style={{ display: 'flex', alignItems: 'center', gap: '38px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ width: '34px', height: '34px', borderRadius: '11px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 16px rgba(124,92,255,0.45)', flexShrink: 0 }}>
                 <EtheonLogo size={20} />
               </div>
               <span style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: '20px', letterSpacing: '-0.02em' }}>Etheon</span>
-            </div>
+            </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: '26px', fontSize: '14px', fontWeight: 600, color: '#A39FB5' }}>
-              {['Mining', 'Wallet', 'Rewards', 'Company'].map((l, i) => (
-                <span key={l} style={{ cursor: 'pointer', color: i === 0 ? '#F4F3FA' : undefined }}>{l}</span>
-              ))}
+              <a href="#mining" style={{ color: '#F4F3FA', textDecoration: 'none', cursor: 'pointer' }}>Mining</a>
+              <a href="/login" style={{ color: '#A39FB5', textDecoration: 'none', cursor: 'pointer' }}>Wallet</a>
+              <a href="#stats" style={{ color: '#A39FB5', textDecoration: 'none', cursor: 'pointer' }}>Rewards</a>
+              <a href="/support" style={{ color: '#A39FB5', textDecoration: 'none', cursor: 'pointer' }}>Company</a>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Link href="/login" style={{ textDecoration: 'none' }}>
               <RippleButton variant="ghost" style={{ height: '42px', padding: '0 20px', borderRadius: '999px', fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>Log in</RippleButton>
             </Link>
-            <Link href="/login" style={{ textDecoration: 'none' }}>
+            <Link href="/login?tab=signup" style={{ textDecoration: 'none' }}>
               <RippleButton variant="purple" style={{ height: '42px', padding: '0 22px', borderRadius: '999px', fontSize: '14px', fontWeight: 700, color: '#fff', boxShadow: '0 8px 20px rgba(124,92,255,0.4)' }}>Sign up</RippleButton>
             </Link>
           </div>
@@ -67,15 +70,15 @@ export default function LandingPage() {
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(124,92,255,0.14)', border: '1px solid rgba(124,92,255,0.25)', padding: '8px 15px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF', marginBottom: '26px' }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#16D98A', boxShadow: '0 0 8px #16D98A', display: 'inline-block', flexShrink: 0 }} />
-              Simulated mining · No hardware
+              Etheon Rewards Mining · No rigs required
             </div>
             <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: 'clamp(38px,5.5vw,62px)', lineHeight: 1.02, letterSpacing: '-0.035em' }}>
-              Earn Ethereum,<br />
-              <span style={{ background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>every single day.</span>
+              {get('landing', 'hero_headline', 'Earn Ethereum,')}<br />
+              <span style={{ background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{get('landing', 'hero_headline_accent', 'every single day.')}</span>
             </h1>
-            <p style={{ fontSize: '18px', color: '#A39FB5', lineHeight: 1.6, margin: '24px 0 32px', maxWidth: '480px' }}>Own virtual hashrate, watch your rewards accrue in real time, and withdraw whenever you want. Etheon handles the rigs — you keep the upside.</p>
+            <p style={{ fontSize: '18px', color: '#A39FB5', lineHeight: 1.6, margin: '24px 0 32px', maxWidth: '480px' }}>{get('landing', 'hero_subheadline', 'Own virtual hashrate, watch your rewards accrue in real time, and withdraw whenever you want. Etheon handles the rigs — you keep the upside.')}</p>
             <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-              <Link href="/login" style={{ textDecoration: 'none' }}>
+              <Link href="/login?tab=signup" style={{ textDecoration: 'none' }}>
                 <RippleButton variant="purple" style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '54px', padding: '0 28px', borderRadius: '999px', fontSize: '16px', fontWeight: 700, color: '#fff', boxShadow: '0 12px 30px rgba(124,92,255,0.45)' }}>
                   <Icon name="bolt" size={21} color="#fff" />
                   Start mining
@@ -150,9 +153,9 @@ export default function LandingPage() {
         </section>
 
         {/* STATS */}
-        <section style={{ maxWidth: '1180px', margin: '0 auto', padding: '56px 32px' }}>
+        <section id="stats" style={{ maxWidth: '1180px', margin: '0 auto', padding: '56px 32px' }}>
           <div className="resp-grid-stats">
-            {[['5M+', 'Registered miners'], ['15M+', 'TH/s deployed'], ['$0', 'Hardware cost'], ['99.98%', 'Network uptime']].map(([val, label]) => (
+            {[[get('landing','stat_miners','5M+'), 'Registered miners'], ['15M+', 'TH/s deployed'], ['$0', 'Hardware cost'], [get('landing','stat_uptime','99.98%'), 'Network uptime']].map(([val, label]) => (
               <div key={label as string} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(28px,3.5vw,42px)', letterSpacing: '-0.02em', background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{val}</div>
                 <div style={{ fontSize: '14px', color: '#8A8699', marginTop: '6px' }}>{label}</div>
@@ -162,7 +165,7 @@ export default function LandingPage() {
         </section>
 
         {/* STEPS */}
-        <section style={{ background: '#ECEBF4', color: '#15131F', borderRadius: '40px 40px 0 0', marginTop: '30px' }}>
+        <section id="mining" style={{ background: '#ECEBF4', color: '#15131F', borderRadius: '40px 40px 0 0', marginTop: '30px' }}>
           <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '72px 32px 80px' }}>
             <div style={{ textAlign: 'center', maxWidth: '620px', margin: '0 auto 50px' }}>
               <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(28px,4vw,42px)', letterSpacing: '-0.03em' }}>Three steps to your first reward</h2>
@@ -170,9 +173,9 @@ export default function LandingPage() {
             </div>
             <div className="resp-grid-3">
               {[
-                { icon: 'person_add' as const, bg: 'linear-gradient(135deg,#7c5cff,#6e8bff)', step: '01', title: 'Create your account', desc: 'Sign up in under a minute and deposit funds securely to get going.' },
-                { icon: 'bolt' as const, bg: 'linear-gradient(135deg,#6e8bff,#9b7bff)', step: '02', title: 'Power your miner', desc: 'Allocate hashrate with a tap. Scale up or down anytime, instantly.' },
-                { icon: 'savings' as const, bg: 'linear-gradient(135deg,#16d98a,#6e8bff)', step: '03', title: 'Earn & withdraw', desc: 'Watch ETH accrue in real time and cash out whenever you like.' },
+                { icon: 'person_add' as const, bg: 'linear-gradient(135deg,#7c5cff,#6e8bff)', step: '01', title: get('landing','step1_title','Create your account'), desc: get('landing','step1_desc','Sign up in under a minute and deposit funds securely to get going.') },
+                { icon: 'bolt' as const, bg: 'linear-gradient(135deg,#6e8bff,#9b7bff)', step: '02', title: get('landing','step2_title','Power your miner'), desc: get('landing','step2_desc','Allocate hashrate with a tap. Scale up or down anytime, instantly.') },
+                { icon: 'savings' as const, bg: 'linear-gradient(135deg,#16d98a,#6e8bff)', step: '03', title: get('landing','step3_title','Earn & withdraw'), desc: get('landing','step3_desc','Watch ETH accrue in real time and cash out whenever you like.') },
               ].map(s => (
                 <div key={s.step} style={{ background: '#fff', borderRadius: '24px', padding: '30px', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 10px 30px rgba(124,92,255,0.06)' }}>
                   <div style={{ width: '52px', height: '52px', borderRadius: '15px', background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
@@ -196,7 +199,7 @@ export default function LandingPage() {
                 <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(26px,3.5vw,40px)', letterSpacing: '-0.03em', color: '#fff' }}>Start mining in minutes.</h2>
                 <p style={{ fontSize: '17px', color: '#A39FB5', marginTop: '14px', maxWidth: '440px' }}>Join millions earning Ethereum the simple way. No hardware, no hassle.</p>
               </div>
-              <Link href="/login" style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <Link href="/login?tab=signup" style={{ textDecoration: 'none', flexShrink: 0 }}>
                 <RippleButton variant="purple" style={{ display: 'flex', alignItems: 'center', gap: '9px', height: '56px', padding: '0 32px', borderRadius: '999px', fontSize: '16px', fontWeight: 700, color: '#fff', boxShadow: '0 12px 30px rgba(124,92,255,0.5)' }}>
                   <Icon name="rocket_launch" size={22} color="#fff" />
                   Create free account
@@ -214,7 +217,7 @@ export default function LandingPage() {
                 <EtheonLogo size={16} />
               </div>
               <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '16px', color: '#15131F' }}>Etheon</span>
-              <span style={{ fontSize: '13px', marginLeft: '8px' }}>© 2026 · Simulated mining platform</span>
+              <span style={{ fontSize: '13px', marginLeft: '8px' }}>© 2026 · Etheon Rewards Platform</span>
             </div>
             <div style={{ display: 'flex', gap: '24px', fontSize: '13.5px', fontWeight: 600 }}>
               {['Privacy', 'Terms', 'Security', 'Support'].map(l => (
