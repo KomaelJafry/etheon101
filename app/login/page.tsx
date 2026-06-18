@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
@@ -7,6 +7,12 @@ import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
 import { useContent } from '../../hooks/useContent';
 import { EtheonCrystal } from '../../components/EtheonBrand';
+import { normalizeAuthError } from '../../lib/auth-error';
+
+const SIGNUP_COOLDOWN_KEY = 'etheon_signup_cooldown_until';
+const LOGIN_COOLDOWN_KEY = 'etheon_login_cooldown_until';
+const SIGNUP_COOLDOWN_SECS = 20;
+const LOGIN_FAIL_COOLDOWN_SECS = 5;
 
 function InputRow({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
@@ -27,6 +33,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
+  const [cooldownSecs, setCooldownSecs] = useState(0);
+  const cooldownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function startCooldownTimer(seconds: number) {
+    if (cooldownInterval.current) clearInterval(cooldownInterval.current);
+    setCooldownSecs(seconds);
+    cooldownInterval.current = setInterval(() => {
+      setCooldownSecs(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownInterval.current!);
+          cooldownInterval.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  function applyCooldown(seconds: number, key: string) {
+    localStorage.setItem(key, String(Date.now() + seconds * 1000));
+    startCooldownTimer(seconds);
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -36,7 +64,13 @@ export default function LoginPage() {
     const urlError = params.get('error');
     if (urlError === 'auth_failed') setErr('Sign-in could not be completed. Please use email to continue.');
     else if (urlError === 'admin_required') setErr('Admin access required. Please sign in with an admin account.');
-  }, []);
+
+    // Restore any persisted cooldown from a previous attempt
+    const signupUntil = parseInt(localStorage.getItem(SIGNUP_COOLDOWN_KEY) ?? '0', 10);
+    const loginUntil = parseInt(localStorage.getItem(LOGIN_COOLDOWN_KEY) ?? '0', 10);
+    const remaining = Math.max(signupUntil, loginUntil) - Date.now();
+    if (remaining > 0) startCooldownTimer(Math.ceil(remaining / 1000));
+  }, []); // mount-only
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,15 +79,34 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (cooldownSecs > 0 || loading) return;
     setLoading(true); setErr('');
+
     if (tab === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setErr(error.message); setLoading(false); return; }
+      if (error) {
+        const { message, retryAfterSeconds } = normalizeAuthError(error.message);
+        setErr(message);
+        applyCooldown(retryAfterSeconds ?? LOGIN_FAIL_COOLDOWN_SECS, LOGIN_COOLDOWN_KEY);
+        setLoading(false);
+        return;
+      }
       router.push('/dashboard');
       router.refresh(); // flush RSC cache so middleware sees the new session cookie
     } else {
+      // Apply signup cooldown immediately to prevent double-submit
+      applyCooldown(SIGNUP_COOLDOWN_SECS, SIGNUP_COOLDOWN_KEY);
       const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
-      if (error) { setErr(error.message); setLoading(false); return; }
+      if (error) {
+        const { message, retryAfterSeconds } = normalizeAuthError(error.message);
+        setErr(message);
+        // Override cooldown duration if Supabase specified a longer wait
+        if (retryAfterSeconds && retryAfterSeconds > SIGNUP_COOLDOWN_SECS) {
+          applyCooldown(retryAfterSeconds, SIGNUP_COOLDOWN_KEY);
+        }
+        setLoading(false);
+        return;
+      }
       if (data.user) {
         await supabase.from('profiles').upsert({ id: data.user.id, full_name: name, email });
         router.push('/dashboard');
@@ -70,6 +123,7 @@ export default function LoginPage() {
     setTab(t);
     setErr('');
     setForgotMsg('');
+    // Don't clear the cooldown timer — it persists across tab switches
   }
 
   async function handleForgotPassword() {
@@ -79,7 +133,12 @@ export default function LoginPage() {
       redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/login` : undefined,
     });
     setLoading(false);
-    if (error) { setErr('Could not send reset email. Please try again.'); }
+    if (error) {
+      const { message, retryAfterSeconds } = normalizeAuthError(error.message);
+      const isRateLimit = error.message.toLowerCase().includes('security') || error.message.toLowerCase().includes('rate');
+      setErr(isRateLimit ? message : 'Could not send reset email. Please try again.');
+      if (retryAfterSeconds) applyCooldown(retryAfterSeconds, LOGIN_COOLDOWN_KEY);
+    }
     else { setForgotMsg('Check your inbox for a password reset link.'); }
   }
 
@@ -157,7 +216,18 @@ export default function LoginPage() {
           </div>
 
           {err && (
-            <div style={{ padding: '12px 14px', borderRadius: '12px', marginBottom: '16px', background: 'rgba(255,107,138,0.1)', border: '1px solid rgba(255,107,138,0.3)', fontSize: '13.5px', color: '#FF6B8A' }}>{err}</div>
+            <div style={{ padding: '12px 14px', borderRadius: '12px', marginBottom: '16px', background: 'rgba(255,107,138,0.1)', border: '1px solid rgba(255,107,138,0.3)', fontSize: '13.5px', color: '#FF6B8A' }}>
+              {err}
+              {cooldownSecs > 0 && (
+                <span style={{ display: 'block', marginTop: '4px', color: '#FF9AB2', fontSize: '12.5px' }}>
+                  You can try again in {cooldownSecs}s.
+                </span>
+              )}
+            </div>
+          )}
+          {!err && cooldownSecs === 0 && (
+            // "You can try again now." shown briefly after countdown clears but no new error
+            null
           )}
 
           <form onSubmit={handleSubmit}>
@@ -197,10 +267,20 @@ export default function LoginPage() {
             )}
             {!isLogin && <div style={{ marginBottom: '22px' }} />}
 
-            <RippleButton type="submit" variant="purple" disabled={loading} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 700, color: '#fff', padding: '15px', borderRadius: '14px', background: loading ? 'rgba(124,92,255,0.5)' : '#7C5CFF', boxShadow: '0 10px 26px rgba(124,92,255,0.42)', cursor: loading ? 'not-allowed' : 'pointer' }}>
-              {loading ? 'Please wait…' : (isLogin ? 'Log in' : 'Create account')}
-              {!loading && <Icon name="arrow_forward" size={19} color="#fff" />}
-            </RippleButton>
+            {(() => {
+              const busy = loading || cooldownSecs > 0;
+              const label = loading
+                ? (isLogin ? 'Signing in…' : 'Creating account…')
+                : cooldownSecs > 0
+                  ? `Wait ${cooldownSecs}s…`
+                  : (isLogin ? 'Log in' : 'Create account');
+              return (
+                <RippleButton type="submit" variant="purple" disabled={busy} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 700, color: '#fff', padding: '15px', borderRadius: '14px', background: busy ? 'rgba(124,92,255,0.5)' : '#7C5CFF', boxShadow: '0 10px 26px rgba(124,92,255,0.42)', cursor: busy ? 'not-allowed' : 'pointer' }}>
+                  {label}
+                  {!busy && <Icon name="arrow_forward" size={19} color="#fff" />}
+                </RippleButton>
+              );
+            })()}
           </form>
 
           <div style={{ textAlign: 'center', marginTop: '22px', fontSize: '14px', color: '#8A8699' }}>
