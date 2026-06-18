@@ -1,13 +1,8 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
+import { EtheonCrystal } from '@/components/EtheonBrand';
 
-function EtheonLogo() {
-  return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
+
 
 const s = {
   h2: { fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '18px', color: '#E9E7F2', margin: '32px 0 12px' } as React.CSSProperties,
@@ -20,7 +15,7 @@ export default function SupportPage() {
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '900px', margin: '0 auto', padding: '22px 32px', width: '100%' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EtheonLogo />
+            <EtheonCrystal size={20} />
           </div>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '18px', letterSpacing: '-0.02em' }}>Etheon</span>
         </Link>
@@ -70,3 +65,4 @@ export default function SupportPage() {
     </div>
   );
 }
+

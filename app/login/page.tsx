@@ -6,14 +6,7 @@ import Link from 'next/link';
 import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
 import { useContent } from '../../hooks/useContent';
-
-function EtheonLogo({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
+import { EtheonCrystal } from '../../components/EtheonBrand';
 
 function InputRow({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
@@ -100,10 +93,10 @@ export default function LoginPage() {
 
         <div style={{ position: 'relative' }}>
           <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '11px', textDecoration: 'none', color: 'inherit' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(124,92,255,0.45)', flexShrink: 0 }}>
-              <EtheonLogo size={22} />
+            <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'linear-gradient(135deg,#9B7BFF,#6E8BFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(155,123,255,0.45)', flexShrink: 0 }}>
+              <EtheonCrystal size={23} />
             </div>
-            <span style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: '21px', letterSpacing: '-0.02em' }}>Etheon</span>
+            <span style={{ fontFamily: "var(--font-primary,'Space Grotesk',sans-serif)", fontWeight: 600, fontSize: '21px', letterSpacing: '-0.02em' }}>Etheon</span>
           </Link>
         </div>
 

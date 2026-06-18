@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
+import { EtheonCrystal } from '@/components/EtheonBrand';
 
 function SkeletonRow() {
   return (
@@ -30,13 +31,6 @@ function initials(name: string) {
   return (name || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 }
 
-function EtheonLogoMark({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
 
 const VIP_TIERS = ['Bronze', 'Silver', 'Gold', 'Platinum'] as const;
 const VIP_LABEL = ['Standard', 'Bronze', 'Silver', 'Gold', 'Platinum'];
@@ -116,7 +110,7 @@ export default function AdminPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
               <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(124,92,255,0.4)' }}>
-                <EtheonLogoMark size={22} />
+                <EtheonCrystal size={22} />
               </div>
               <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '20px', letterSpacing: '-0.02em' }}>Etheon</span>
               <span style={{ padding: '4px 11px', borderRadius: '999px', background: 'rgba(255,181,92,0.14)', border: '1px solid rgba(255,181,92,0.25)', fontSize: '11.5px', fontWeight: 700, color: '#FFB55C' }}>Admin</span>
@@ -289,3 +283,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../../../components/Icon';
 import RippleButton from '../../../../components/RippleButton';
+import { EtheonCrystal } from '../../../../components/EtheonBrand';
 
 // ── Types ────────────────────────────────────────────────
 interface Profile {
@@ -100,14 +101,6 @@ function Toast({ msg, type, onDone }: { msg: string; type: 'success' | 'error'; 
   );
 }
 
-// ── EtheonLogoMark ────────────────────────────────────────
-function EtheonLogoMark({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
 
 // ── Main page ─────────────────────────────────────────────
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -366,7 +359,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EtheonLogoMark size={18} />
+              <EtheonCrystal size={18} />
             </div>
             <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '16px' }}>Etheon</span>
             <Icon name="chevron_right" size={18} color="#4A4763" />

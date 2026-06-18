@@ -1,0 +1,35 @@
+<svg viewBox="0 0 320 80" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <linearGradient id="el-top-l" x1="40" y1="7" x2="13" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E0C8FF"/>
+      <stop offset="1" stop-color="#9B7BFF"/>
+    </linearGradient>
+    <linearGradient id="el-top-r" x1="40" y1="7" x2="67" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C8B8FF"/>
+      <stop offset="1" stop-color="#6E8BFF"/>
+    </linearGradient>
+    <linearGradient id="el-bot-l" x1="13" y1="50" x2="40" y2="74" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6B55CC"/>
+      <stop offset="1" stop-color="#4A3DAA"/>
+    </linearGradient>
+    <linearGradient id="el-bot-r" x1="67" y1="50" x2="40" y2="74" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5E7AE8"/>
+      <stop offset="1" stop-color="#6E8BFF"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon: 80×80 viewBox crystal scaled to fit 0–80 x 0–80 -->
+  <!-- Upper-left face -->
+  <polygon points="40,7 13,44 40,34" fill="url(#el-top-l)"/>
+  <!-- Upper-right face -->
+  <polygon points="40,7 67,44 40,34" fill="url(#el-top-r)"/>
+  <!-- Lower-left face -->
+  <polygon points="13,50 40,74 40,40" fill="url(#el-bot-l)"/>
+  <!-- Lower-right face -->
+  <polygon points="67,50 40,74 40,40" fill="url(#el-bot-r)"/>
+  <!-- Belt-left -->
+  <polygon points="13,44 40,34 40,40 13,50" fill="#8A6BFF" opacity="0.85"/>
+  <!-- Belt-right -->
+  <polygon points="67,44 40,34 40,40 67,50" fill="#9B7BFF" opacity="0.65"/>
+  <!-- Wordmark: "Etheon" in dark navy, Space Grotesk 600 -->
+  <text x="96" y="53" font-family="'Space Grotesk', 'Inter', 'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="38" fill="#0D1654" letter-spacing="-1">Etheon</text>
+</svg>

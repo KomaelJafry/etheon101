@@ -1,0 +1,32 @@
+<svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <linearGradient id="ei-top-l" x1="80" y1="14" x2="26" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E0C8FF"/>
+      <stop offset="1" stop-color="#9B7BFF"/>
+    </linearGradient>
+    <linearGradient id="ei-top-r" x1="80" y1="14" x2="134" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C8B8FF"/>
+      <stop offset="1" stop-color="#6E8BFF"/>
+    </linearGradient>
+    <linearGradient id="ei-bot-l" x1="26" y1="100" x2="80" y2="148" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6B55CC"/>
+      <stop offset="1" stop-color="#4A3DAA"/>
+    </linearGradient>
+    <linearGradient id="ei-bot-r" x1="134" y1="100" x2="80" y2="148" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5E7AE8"/>
+      <stop offset="1" stop-color="#6E8BFF"/>
+    </linearGradient>
+  </defs>
+  <!-- Upper-left face -->
+  <polygon points="80,14 26,88 80,68" fill="url(#ei-top-l)"/>
+  <!-- Upper-right face -->
+  <polygon points="80,14 134,88 80,68" fill="url(#ei-top-r)"/>
+  <!-- Lower-left face -->
+  <polygon points="26,100 80,148 80,80" fill="url(#ei-bot-l)"/>
+  <!-- Lower-right face -->
+  <polygon points="134,100 80,148 80,80" fill="url(#ei-bot-r)"/>
+  <!-- Belt-left (connects upper to lower) -->
+  <polygon points="26,88 80,68 80,80 26,100" fill="#8A6BFF" opacity="0.85"/>
+  <!-- Belt-right -->
+  <polygon points="134,88 80,68 80,80 134,100" fill="#9B7BFF" opacity="0.65"/>
+</svg>

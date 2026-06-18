@@ -7,14 +7,7 @@ import { AppProvider, useApp } from './AppContext';
 import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
 import { ToastProvider } from '../../components/Toast';
-
-function EtheonLogoMark({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
+import { EtheonCrystal } from '../../components/EtheonBrand';
 
 const NAV = [
   { href: '/dashboard',    icon: 'grid_view',              label: 'Dashboard' },
@@ -96,9 +89,9 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
 
         <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'20px' }}>
           {(['monthly', 'annual'] as const).map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ display:'flex', alignItems:'center', gap:'14px', padding:'16px', borderRadius:'16px', background: period===p ? 'rgba(124,92,255,0.16)' : 'rgba(255,255,255,0.04)', border:`1.5px solid ${period===p ? 'rgba(124,92,255,0.45)' : 'rgba(255,255,255,0.08)'}`, cursor:'pointer', textAlign:'left', width:'100%', fontFamily:"'Manrope',sans-serif" }}>
-              <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`2px solid ${period===p ? '#7C5CFF' : 'rgba(255,255,255,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                {period===p && <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:'#7C5CFF' }} />}
+            <button key={p} onClick={() => setPeriod(p)} style={{ display:'flex', alignItems:'center', gap:'14px', padding:'16px', borderRadius:'16px', background: period===p ? 'rgba(155,123,255,0.16)' : 'rgba(255,255,255,0.04)', border:`1.5px solid ${period===p ? 'rgba(155,123,255,0.45)' : 'rgba(255,255,255,0.08)'}`, cursor:'pointer', textAlign:'left', width:'100%', fontFamily:"'Manrope',sans-serif" }}>
+              <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`2px solid ${period===p ? '#9B7BFF' : 'rgba(255,255,255,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                {period===p && <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:'#9B7BFF' }} />}
               </div>
               <div>
                 <div style={{ fontWeight:700, fontSize:'14px', color:'#F4F3FA', textTransform:'capitalize' }}>{p}</div>
@@ -111,7 +104,7 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
 
         {err && <div style={{ padding:'10px 14px', borderRadius:'12px', marginBottom:'14px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.3)', fontSize:'13px', color:'#FF6B8A' }}>{err}</div>}
 
-        <RippleButton variant="purple" onClick={startCheckout} disabled={loading} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', fontSize:'15px', fontWeight:700, color:'#fff', padding:'15px', borderRadius:'14px', background: loading ? 'rgba(124,92,255,0.5)' : '#7C5CFF', boxShadow:'0 8px 22px rgba(124,92,255,0.35)', cursor: loading ? 'not-allowed' : 'pointer' }}>
+        <RippleButton variant="purple" onClick={startCheckout} disabled={loading} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', fontSize:'15px', fontWeight:700, color:'#fff', padding:'15px', borderRadius:'14px', background: loading ? 'rgba(155,123,255,0.5)' : '#9B7BFF', boxShadow:'0 8px 22px rgba(155,123,255,0.35)', cursor: loading ? 'not-allowed' : 'pointer' }}>
           {loading ? 'Redirecting…' : 'Continue to payment'}
           {!loading && <Icon name="arrow_forward" size={18} color="#fff" />}
         </RippleButton>
@@ -149,8 +142,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       <aside className={`app-sidebar${sidebarOpen ? ' open' : ''}`}>
         <Link href="/dashboard" style={{ display:'flex', alignItems:'center', gap:'10px', padding:'0 8px 24px', textDecoration:'none', color:'inherit' }}>
-          <div style={{ width:'36px', height:'36px', borderRadius:'11px', background:'linear-gradient(135deg,#9b7bff,#6e8bff)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 6px 20px rgba(124,92,255,0.5)', flexShrink:0 }}>
-            <EtheonLogoMark size={20} />
+          <div style={{ width:'36px', height:'36px', borderRadius:'11px', background:'linear-gradient(135deg,#9B7BFF,#6E8BFF)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 6px 20px rgba(155,123,255,0.5)', flexShrink:0 }}>
+            <EtheonCrystal size={21} />
           </div>
           <div>
             <div className="sg" style={{ fontWeight:700, fontSize:'17px', letterSpacing:'-0.02em', lineHeight:1 }}>Etheon</div>
@@ -163,10 +156,10 @@ function Shell({ children }: { children: React.ReactNode }) {
             const active = pathname === href;
             return (
               <Link key={href} href={href} className="nav-link ripple-root"
-                style={{ position:'relative', display:'flex', alignItems:'center', gap:'12px', textDecoration:'none', fontWeight:active?700:600, fontSize:'14px', padding:'10px 12px', borderRadius:'12px', background:active?'rgba(124,92,255,0.16)':'transparent', color:active?'#E9E7F2':'#8A8699', overflow:'hidden' }}
+                style={{ position:'relative', display:'flex', alignItems:'center', gap:'12px', textDecoration:'none', fontWeight:active?700:600, fontSize:'14px', padding:'10px 12px', borderRadius:'12px', background:active?'rgba(155,123,255,0.16)':'transparent', color:active?'#E9E7F2':'#8A8699', overflow:'hidden' }}
                 onClick={e => { closeSidebar(); addRippleToEl(e, e.currentTarget); }}
               >
-                {active && <span style={{ position:'absolute', left:'-14px', top:'50%', transform:'translateY(-50%)', width:'3px', height:'20px', borderRadius:'3px', background:'#7C5CFF' }} />}
+                {active && <span style={{ position:'absolute', left:'-14px', top:'50%', transform:'translateY(-50%)', width:'3px', height:'20px', borderRadius:'3px', background:'#9B7BFF' }} />}
                 <Icon name={icon} size={20} color={active ? '#C9BBFF' : '#6F6B82'} />
                 {label}
               </Link>
@@ -175,11 +168,11 @@ function Shell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div style={{ marginTop:'auto', display:'flex', flexDirection:'column', gap:'12px' }}>
-          <div style={{ position:'relative', overflow:'hidden', borderRadius:'16px', padding:'16px', background:'linear-gradient(150deg,rgba(124,92,255,0.24),rgba(110,139,255,0.1))', border:'1px solid rgba(124,92,255,0.3)' }}>
+          <div style={{ position:'relative', overflow:'hidden', borderRadius:'16px', padding:'16px', background:'linear-gradient(150deg,rgba(155,123,255,0.24),rgba(110,139,255,0.1))', border:'1px solid rgba(155,123,255,0.3)' }}>
             <div style={{ position:'absolute', top:'-28px', right:'-28px', width:'80px', height:'80px', borderRadius:'50%', background:'radial-gradient(circle,rgba(155,123,255,0.55),transparent 70%)', pointerEvents:'none' }} />
             <div className="sg" style={{ fontWeight:700, fontSize:'13.5px', marginBottom:'4px' }}>Upgrade hashrate</div>
             <div style={{ fontSize:'11.5px', color:'#B9B4CC', lineHeight:1.45, marginBottom:'12px' }}>Add power and boost your daily ETH yield.</div>
-            <RippleButton variant="purple" onClick={() => { closeSidebar(); setUpgradeOpen(true); }} style={{ display:'block', width:'100%', fontSize:'13px', color:'#fff', padding:'9px', borderRadius:'11px', boxShadow:'0 6px 18px rgba(124,92,255,0.45)' }}>
+            <RippleButton variant="purple" onClick={() => { closeSidebar(); setUpgradeOpen(true); }} style={{ display:'block', width:'100%', fontSize:'13px', color:'#fff', padding:'9px', borderRadius:'11px', boxShadow:'0 6px 18px rgba(155,123,255,0.45)' }}>
               Upgrade now
             </RippleButton>
           </div>

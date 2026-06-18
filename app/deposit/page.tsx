@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -7,14 +7,7 @@ import { AppProvider, useApp } from '../(app)/AppContext';
 import { useContent } from '../../hooks/useContent';
 import UnlockProgressCard from '../../components/UnlockProgressCard';
 import Icon from '../../components/Icon';
-
-function EtheonLogo({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
+import { EtheonCrystal } from '@/components/EtheonBrand';
 
 const PRESETS = [20, 50, 100, 250, 500];
 
@@ -184,7 +177,7 @@ function DepositPageInner() {
       <nav style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1000px', margin: '0 auto', padding: '22px 28px' }}>
         <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}>
           <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EtheonLogo size={18} />
+            <EtheonCrystal size={18} />
           </div>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '18px', letterSpacing: '-0.02em' }}>Etheon</span>
         </Link>
@@ -412,3 +405,4 @@ function DepositPageInner() {
     </div>
   );
 }
+

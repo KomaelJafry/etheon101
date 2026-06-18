@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
+import { EtheonCrystal } from '@/components/EtheonBrand';
 
 // ── Types ────────────────────────────────────────────────
 interface Customer {
@@ -64,14 +65,6 @@ function SkeletonRow() {
 
 const COLS = '2.2fr 1.1fr 1fr 1fr 1fr 1fr 1fr 80px';
 
-// ── EtheonLogoMark ────────────────────────────────────────
-function EtheonLogoMark({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      <polygon points="12,3 22,21 2,21" fill="white" />
-    </svg>
-  );
-}
 
 // ── Main page ────────────────────────────────────────────
 export default function CustomersPage() {
@@ -160,7 +153,7 @@ export default function CustomersPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '4px' }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '11px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <EtheonLogoMark size={20} />
+                <EtheonCrystal size={20} />
               </div>
               <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '18px', letterSpacing: '-0.02em' }}>Etheon</span>
               <span style={{ padding: '3px 10px', borderRadius: '999px', background: 'rgba(255,181,92,0.14)', border: '1px solid rgba(255,181,92,0.25)', fontSize: '11px', fontWeight: 700, color: '#FFB55C' }}>Admin</span>
@@ -295,3 +288,4 @@ export default function CustomersPage() {
     </div>
   );
 }
+
