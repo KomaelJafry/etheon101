@@ -23,9 +23,20 @@ function InputRow({ icon, children }: { icon: string; children: React.ReactNode 
   );
 }
 
+function Spinner() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 44 44" fill="none" style={{ animation: 'etheonSpin 0.7s linear infinite', flexShrink: 0 }}>
+      <circle cx="22" cy="22" r="18" stroke="rgba(255,255,255,0.25)" strokeWidth="4" />
+      <path d="M22 4a18 18 0 0 1 18 18" stroke="#fff" strokeWidth="4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [tab, setTab] = useState<'login' | 'signup'>('login');
+
+  useEffect(() => { document.title = 'Sign in | Etheon'; }, []);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -245,7 +256,7 @@ export default function LoginPage() {
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#A39FB5', marginBottom: '8px' }}>Full name</label>
                 <InputRow icon="person">
-                  <input value={name} onChange={e => setName(e.target.value)} placeholder="Alex Karras" required style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: '#F4F3FA', fontFamily: "'Manrope', sans-serif", fontSize: '15px' }} />
+                  <input value={name} onChange={e => setName(e.target.value)} placeholder="Alex Karras" required disabled={loading} style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: loading ? '#6F6B82' : '#F4F3FA', fontFamily: "'Manrope', sans-serif", fontSize: '15px', cursor: loading ? 'not-allowed' : 'text' }} />
                 </InputRow>
               </div>
             )}
@@ -253,14 +264,14 @@ export default function LoginPage() {
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#A39FB5', marginBottom: '8px' }}>Email address</label>
               <InputRow icon="mail">
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" required style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: '#F4F3FA', fontFamily: "'Manrope', sans-serif", fontSize: '15px' }} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" required disabled={loading} style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: loading ? '#6F6B82' : '#F4F3FA', fontFamily: "'Manrope', sans-serif", fontSize: '15px', cursor: loading ? 'not-allowed' : 'text' }} />
               </InputRow>
             </div>
 
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#A39FB5', marginBottom: '8px' }}>Password</label>
               <InputRow icon="lock">
-                <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: '#F4F3FA', fontFamily: "'Manrope', sans-serif", fontSize: '15px' }} />
+                <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required disabled={loading} style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: loading ? '#6F6B82' : '#F4F3FA', fontFamily: "'Manrope', sans-serif", fontSize: '15px', cursor: loading ? 'not-allowed' : 'text' }} />
                 <RippleButton type="button" variant="none" onClick={() => setShowPw(p => !p)} style={{ background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                   <Icon name={showPw ? 'visibility' : 'visibility_off'} size={20} color="#6F6B82" />
                 </RippleButton>
@@ -285,10 +296,18 @@ export default function LoginPage() {
                   ? `Wait ${cooldownSecs}s…`
                   : (isLogin ? 'Log in' : 'Create account');
               return (
-                <RippleButton type="submit" variant="purple" disabled={busy} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 700, color: '#fff', padding: '15px', borderRadius: '14px', background: busy ? 'rgba(124,92,255,0.5)' : '#7C5CFF', boxShadow: '0 10px 26px rgba(124,92,255,0.42)', cursor: busy ? 'not-allowed' : 'pointer' }}>
-                  {label}
-                  {!busy && <Icon name="arrow_forward" size={19} color="#fff" />}
-                </RippleButton>
+                <>
+                  <RippleButton type="submit" variant="purple" disabled={busy} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 700, color: '#fff', padding: '15px', borderRadius: '14px', background: busy ? 'rgba(124,92,255,0.5)' : '#7C5CFF', boxShadow: '0 10px 26px rgba(124,92,255,0.42)', cursor: busy ? 'not-allowed' : 'pointer' }}>
+                    {loading && <Spinner />}
+                    {label}
+                    {!busy && <Icon name="arrow_forward" size={19} color="#fff" />}
+                  </RippleButton>
+                  {loading && (
+                    <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '12.5px', color: '#9B7BFF', fontWeight: 600 }}>
+                      {isLogin ? 'Securely signing you in…' : 'Creating your account…'}
+                    </div>
+                  )}
+                </>
               );
             })()}
           </form>

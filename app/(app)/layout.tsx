@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { AppProvider, useApp } from './AppContext';
@@ -47,22 +47,31 @@ function addRippleToEl(e: React.MouseEvent, el: HTMLElement) {
   setTimeout(() => wave.remove(), 600);
 }
 
+type PlanId = 'starter' | 'growth' | 'annual';
+
+const PLANS: { id: PlanId; name: string; price: string; sub: string; badge?: string }[] = [
+  { id: 'starter', name: 'Starter',     price: '£45/mo',   sub: 'Billed monthly, cancel anytime' },
+  { id: 'growth',  name: 'Growth',      price: '£60/mo',   sub: 'Most popular plan', badge: 'Most Popular' },
+  { id: 'annual',  name: 'Annual Pro',  price: '£399/yr',  sub: '£33.25/month equivalent' },
+];
+
 function UpgradeModal({ onClose }: { onClose: () => void }) {
-  const [period, setPeriod] = useState<'monthly' | 'annual'>('annual');
+  const [selected, setSelected] = useState<PlanId>('growth');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
 
-  async function startCheckout() {
+  async function startCheckout(plan: PlanId) {
+    setSelected(plan);
     setLoading(true); setErr('');
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ billing_period: period }),
+        body: JSON.stringify({ plan }),
       });
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.location.assign(data.url);
       } else {
         setErr(data.error || 'Unable to start checkout. Please try again.');
         setLoading(false);
@@ -75,43 +84,63 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)', padding:'20px' }}
+      style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.72)', backdropFilter:'blur(8px)', padding:'20px' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ width:'100%', maxWidth:'420px', borderRadius:'28px', padding:'30px', background:'#111020', border:'1px solid rgba(255,255,255,0.1)', boxShadow:'0 40px 80px rgba(0,0,0,0.6)' }}>
+      <div style={{ width:'100%', maxWidth:'440px', borderRadius:'28px', padding:'30px', background:'#111020', border:'1px solid rgba(255,255,255,0.1)', boxShadow:'0 40px 80px rgba(0,0,0,0.6)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'6px' }}>
-          <div style={{ fontFamily:"'Space Grotesk'", fontWeight:700, fontSize:'20px' }}>Upgrade your plan</div>
+          <div style={{ fontFamily:"'Space Grotesk'", fontWeight:700, fontSize:'20px' }}>Choose your plan</div>
           <button onClick={onClose} style={{ width:'34px', height:'34px', borderRadius:'10px', border:'none', cursor:'pointer', background:'rgba(255,255,255,0.06)', color:'#C5C1D6', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <Icon name="close" size={19} color="#C5C1D6" />
           </button>
         </div>
-        <div style={{ fontSize:'13px', color:'#8A8699', marginBottom:'22px' }}>Choose a billing period to add hashrate and boost your daily earnings.</div>
+        <div style={{ fontSize:'13px', color:'#8A8699', marginBottom:'20px' }}>Select a plan to activate hashrate and start earning rewards.</div>
 
-        <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'20px' }}>
-          {(['monthly', 'annual'] as const).map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ display:'flex', alignItems:'center', gap:'14px', padding:'16px', borderRadius:'16px', background: period===p ? 'rgba(155,123,255,0.16)' : 'rgba(255,255,255,0.04)', border:`1.5px solid ${period===p ? 'rgba(155,123,255,0.45)' : 'rgba(255,255,255,0.08)'}`, cursor:'pointer', textAlign:'left', width:'100%', fontFamily:"'Manrope',sans-serif" }}>
-              <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`2px solid ${period===p ? '#9B7BFF' : 'rgba(255,255,255,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                {period===p && <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:'#9B7BFF' }} />}
-              </div>
-              <div>
-                <div style={{ fontWeight:700, fontSize:'14px', color:'#F4F3FA', textTransform:'capitalize' }}>{p}</div>
-                <div style={{ fontSize:'12px', color:'#8A8699', marginTop:'2px' }}>{p==='annual' ? 'Save up to 20% vs monthly' : 'Billed each month, cancel anytime'}</div>
-              </div>
-              {p==='annual' && <span style={{ marginLeft:'auto', fontSize:'11px', fontWeight:700, color:'#16D98A', background:'rgba(22,217,138,0.14)', padding:'3px 8px', borderRadius:'999px', flexShrink:0 }}>Best value</span>}
-            </button>
-          ))}
+        <div style={{ display:'flex', flexDirection:'column', gap:'9px', marginBottom:'18px' }}>
+          {PLANS.map(plan => {
+            const isGrowth = plan.id === 'growth';
+            const isSel = selected === plan.id;
+            return (
+              <button key={plan.id} onClick={() => setSelected(plan.id)}
+                style={{ display:'flex', alignItems:'center', gap:'14px', padding:'15px 16px', borderRadius:'16px', background: isGrowth ? 'rgba(155,123,255,0.12)' : isSel ? 'rgba(155,123,255,0.08)' : 'rgba(255,255,255,0.04)', border:`1.5px solid ${isSel ? 'rgba(155,123,255,0.5)' : isGrowth ? 'rgba(155,123,255,0.3)' : 'rgba(255,255,255,0.08)'}`, cursor:'pointer', textAlign:'left', width:'100%', fontFamily:"'Manrope',sans-serif" }}>
+                <div style={{ width:'20px', height:'20px', borderRadius:'50%', border:`2px solid ${isSel ? '#9B7BFF' : 'rgba(255,255,255,0.2)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  {isSel && <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:'#9B7BFF' }} />}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                    <span style={{ fontWeight:700, fontSize:'14px', color:'#F4F3FA' }}>{plan.name}</span>
+                    {plan.badge && <span style={{ fontSize:'10.5px', fontWeight:700, color:'#C9BBFF', background:'rgba(155,123,255,0.22)', padding:'2px 7px', borderRadius:'999px' }}>{plan.badge}</span>}
+                  </div>
+                  <div style={{ fontSize:'12px', color:'#8A8699', marginTop:'2px' }}>{plan.sub}</div>
+                </div>
+                <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'15px', color: isGrowth ? '#C9BBFF' : '#F4F3FA', flexShrink:0 }}>{plan.price}</div>
+              </button>
+            );
+          })}
         </div>
 
         {err && <div style={{ padding:'10px 14px', borderRadius:'12px', marginBottom:'14px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.3)', fontSize:'13px', color:'#FF6B8A' }}>{err}</div>}
 
-        <RippleButton variant="purple" onClick={startCheckout} disabled={loading} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', fontSize:'15px', fontWeight:700, color:'#fff', padding:'15px', borderRadius:'14px', background: loading ? 'rgba(155,123,255,0.5)' : '#9B7BFF', boxShadow:'0 8px 22px rgba(155,123,255,0.35)', cursor: loading ? 'not-allowed' : 'pointer' }}>
-          {loading ? 'Redirecting…' : 'Continue to payment'}
+        <RippleButton variant="purple" onClick={() => startCheckout(selected)} disabled={loading} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', fontSize:'15px', fontWeight:700, color:'#fff', padding:'15px', borderRadius:'14px', background: loading ? 'rgba(155,123,255,0.5)' : '#9B7BFF', boxShadow:'0 8px 22px rgba(155,123,255,0.35)', cursor: loading ? 'not-allowed' : 'pointer' }}>
+          {loading ? 'Redirecting…' : `Continue with ${PLANS.find(p => p.id === selected)?.name}`}
           {!loading && <Icon name="arrow_forward" size={18} color="#fff" />}
         </RippleButton>
       </div>
     </div>
   );
 }
+
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard':    'Dashboard | Etheon',
+  '/mining':       'Rewards Mining | Etheon',
+  '/wallet':       'Wallet | Etheon',
+  '/transactions': 'Transactions | Etheon',
+  '/withdrawals':  'Withdrawals | Etheon',
+  '/account':      'Account Status | Etheon',
+  '/account/status': 'Account Status | Etheon',
+  '/settings':     'Settings | Etheon',
+  '/deposit':      'Deposit Funds | Etheon',
+};
 
 function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -120,6 +149,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  useEffect(() => {
+    document.title = PAGE_TITLES[pathname] ?? 'Etheon';
+  }, [pathname]);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

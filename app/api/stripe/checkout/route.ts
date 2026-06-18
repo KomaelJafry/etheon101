@@ -28,9 +28,17 @@ export async function POST(req: NextRequest) {
   const plan = resolvePlan(parsed.data)
   const priceId = PLAN_PRICES[plan]
 
+  console.log('[checkout]', {
+    plan,
+    hasStarterPrice: !!PLAN_PRICES.starter,
+    hasGrowthPrice:  !!PLAN_PRICES.growth,
+    hasAnnualPrice:  !!PLAN_PRICES.annual,
+  })
+
   if (!priceId) {
+    const label = plan.charAt(0).toUpperCase() + plan.slice(1)
     return NextResponse.json(
-      { error: 'This plan is not configured yet. Please contact support.' },
+      { error: `${label} plan is not configured. Please contact support.` },
       { status: 503 }
     )
   }

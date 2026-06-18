@@ -124,6 +124,7 @@ export default function PricingPage() {
   const [planError, setPlanError] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = 'Pricing | Etheon';
     const sb = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

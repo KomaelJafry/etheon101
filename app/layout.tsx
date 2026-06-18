@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import NavigationProgress from "../components/NavigationProgress";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -11,7 +12,10 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Etheon — Mine Ethereum, every single day",
+  title: {
+    template: "%s | Etheon",
+    default: "Etheon — Mine Ethereum, every single day",
+  },
   description: "Own virtual hashrate, watch your rewards accrue in real time, and withdraw whenever you want. Etheon handles the rigs — you keep the upside.",
   icons: {
     icon: "/brand/etheon-icon.svg",
@@ -36,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body style={{ margin: 0, padding: 0, background: 'var(--color-background)', color: 'var(--color-text-primary)', minHeight: '100vh' }}>
+        <NavigationProgress />
         {children}
       </body>
     </html>
