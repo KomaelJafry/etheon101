@@ -10,11 +10,13 @@ import { useContent } from '../../../hooks/useContent';
 const ETH_RATE = 0.000000032;
 const fmt = (n: number, d = 6) => n.toFixed(d);
 
-async function startSubscribeCheckout(): Promise<{ url: string }> {
+type PlanId = 'starter' | 'growth' | 'annual';
+
+async function startSubscribeCheckout(plan: PlanId = 'growth'): Promise<{ url: string }> {
   const res = await fetch('/api/stripe/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ billing_period: 'monthly' }),
+    body: JSON.stringify({ plan }),
   });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
@@ -32,21 +34,21 @@ const PRESETS = [
 export default function MiningPage() {
   const { profile, ethPrice } = useApp();
   const { get } = useContent(['mining']);
-  const [subLoading, setSubLoading] = useState(false);
+  const [subLoading, setSubLoading] = useState<PlanId | null>(null);
   const [subError, setSubError] = useState<string | null>(null);
 
-  async function handleSubscribe() {
+  async function handleSubscribe(plan: PlanId = 'growth') {
     if (!profile) { window.location.href = '/login'; return; }
-    setSubLoading(true);
+    setSubLoading(plan);
     setSubError(null);
     try {
-      const { url } = await startSubscribeCheckout();
+      const { url } = await startSubscribeCheckout(plan);
       if (url) window.location.href = url;
       else setSubError('No checkout URL returned. Please try again.');
     } catch (err) {
       setSubError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
-      setSubLoading(false);
+      setSubLoading(null);
     }
   }
   const cap = profile?.hashrate_capacity_th || 500;
@@ -189,18 +191,19 @@ export default function MiningPage() {
 
                 {/* Plan comparison mini-card */}
                 <div style={{ borderRadius:'15px', overflow:'hidden', border:'1px solid rgba(255,255,255,0.07)', marginBottom:'16px' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', background:'rgba(255,255,255,0.03)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', background:'rgba(255,255,255,0.03)' }}>
                     {[
-                      { name:'Essential', price:'£19.99/mo', color:'#A39FB5', accent:'rgba(255,255,255,0.06)', border:'rgba(255,255,255,0.08)' },
-                      { name:'Pro',       price:'£49.99/mo', color:'#C9BBFF', accent:'rgba(124,92,255,0.12)', border:'rgba(124,92,255,0.25)' },
-                    ].map(plan => (
-                      <div key={plan.name} style={{ padding:'14px', background:plan.accent, borderLeft:`1px solid ${plan.border}` }}>
-                        <div style={{ fontWeight:700, fontSize:'13px', color:plan.color, marginBottom:'2px' }}>{plan.name}</div>
-                        <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'16px', marginBottom:'8px' }}>{plan.price}</div>
-                        {['Mining access','Progress tracking'].concat(plan.name==='Pro'?['Higher limits','Priority support']:[]).map(f => (
-                          <div key={f} style={{ display:'flex', alignItems:'center', gap:'5px', marginBottom:'4px' }}>
-                            <Icon name="check" size={13} color={plan.name==='Pro'?'#9B7BFF':'#16D98A'} />
-                            <span style={{ fontSize:'11.5px', color:'#A39FB5' }}>{f}</span>
+                      { id:'starter' as PlanId, name:'Starter', price:'£45/mo', color:'#A39FB5', accent:'rgba(255,255,255,0.03)', extras:[] },
+                      { id:'growth'  as PlanId, name:'Growth ★', price:'£60/mo', color:'#C9BBFF', accent:'rgba(124,92,255,0.12)', extras:['Higher limits','Priority support'] },
+                      { id:'annual'  as PlanId, name:'Annual Pro', price:'£399/yr', color:'#A39FB5', accent:'rgba(255,255,255,0.03)', extras:['Best value'] },
+                    ].map(p => (
+                      <div key={p.name} style={{ padding:'12px 10px', background:p.accent, borderLeft:'1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ fontWeight:700, fontSize:'12px', color:p.color, marginBottom:'2px' }}>{p.name}</div>
+                        <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'14px', marginBottom:'6px' }}>{p.price}</div>
+                        {['Mining access','Progress tracking'].concat(p.extras).map(f => (
+                          <div key={f} style={{ display:'flex', alignItems:'center', gap:'4px', marginBottom:'3px' }}>
+                            <Icon name="check" size={12} color={p.id==='growth'?'#9B7BFF':'#16D98A'} />
+                            <span style={{ fontSize:'10.5px', color:'#A39FB5' }}>{f}</span>
                           </div>
                         ))}
                       </div>
@@ -209,13 +212,13 @@ export default function MiningPage() {
                 </div>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-                  <button onClick={handleSubscribe} disabled={subLoading}
-                    style={{ padding:'12px', borderRadius:'12px', background:'rgba(124,92,255,0.18)', border:'1px solid rgba(124,92,255,0.35)', color:'#C9BBFF', fontWeight:700, fontSize:'13px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1 }}>
-                    {subLoading ? 'Redirecting…' : 'Activate Essential'}
+                  <button onClick={() => handleSubscribe('starter')} disabled={!!subLoading}
+                    style={{ padding:'12px', borderRadius:'12px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', color:'#A39FB5', fontWeight:700, fontSize:'13px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1 }}>
+                    {subLoading==='starter' ? 'Redirecting…' : 'Start with Starter'}
                   </button>
-                  <button onClick={handleSubscribe} disabled={subLoading}
+                  <button onClick={() => handleSubscribe('growth')} disabled={!!subLoading}
                     style={{ padding:'12px', borderRadius:'12px', background:'#7C5CFF', border:'none', color:'#fff', fontWeight:700, fontSize:'13px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1, boxShadow:'0 6px 18px rgba(124,92,255,0.4)' }}>
-                    {subLoading ? 'Redirecting…' : 'Upgrade to Pro'}
+                    {subLoading==='growth' ? 'Redirecting…' : 'Choose Growth ★'}
                   </button>
                 </div>
                 {subError && (

@@ -14,7 +14,7 @@ async function startSubscribeCheckout(): Promise<{ url: string }> {
   const res = await fetch('/api/stripe/checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ billing_period: 'monthly' }),
+    body: JSON.stringify({ plan: 'growth' }),
   });
   if (!res.ok) {
     const json = await res.json().catch(() => ({}));
@@ -321,7 +321,7 @@ export default function DashboardPage() {
             </div>
             <button onClick={handleSubscribe} disabled={subLoading}
               style={{ width:'100%', padding:'13px', borderRadius:'13px', background:'#7C5CFF', border:'none', color:'#fff', fontWeight:700, fontSize:'14px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1, boxShadow:'0 8px 22px rgba(124,92,255,0.42)', marginBottom:'8px' }}>
-              {subLoading ? 'Redirecting to checkout…' : 'Activate subscription'}
+              {subLoading ? 'Redirecting to checkout…' : 'Choose Growth — Most Popular'}
             </button>
             {subError && <div style={{ padding:'10px 12px', borderRadius:'10px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.25)', fontSize:'12.5px', color:'#FF6B8A', marginBottom:'8px' }}>{subError}</div>}
             <div style={{ textAlign:'center' }}>

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, PRICES } from '@/lib/stripe'
+import { stripe, PLAN_PRICES } from '@/lib/stripe'
 import { requireAuth } from '@/lib/auth-helpers'
 import { createServiceClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
-const schema = z.object({
-  billing_period: z.enum(['monthly', 'annual']),
-})
+// Accept new plan-based payload; also accept legacy billing_period for compat.
+const schema = z.union([
+  z.object({ plan: z.enum(['starter', 'growth', 'annual']) }),
+  z.object({ billing_period: z.enum(['monthly', 'annual']) }),
+])
+
+function resolvePlan(body: z.infer<typeof schema>): 'starter' | 'growth' | 'annual' {
+  if ('plan' in body) return body.plan
+  return body.billing_period === 'annual' ? 'annual' : 'growth'
+}
 
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -15,11 +22,25 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid billing_period' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid request. Expected { plan: "starter"|"growth"|"annual" }' }, { status: 400 })
+  }
+
+  const plan = resolvePlan(parsed.data)
+  const priceId = PLAN_PRICES[plan]
+
+  if (!priceId) {
+    return NextResponse.json(
+      { error: 'This plan is not configured yet. Please contact support.' },
+      { status: 503 }
+    )
   }
 
   const supabase = await createServiceClient()
-  const { data: profile } = await supabase.from('profiles').select('stripe_customer_id, email').eq('id', user!.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('stripe_customer_id, email')
+    .eq('id', user!.id)
+    .single()
 
   // Get or create Stripe customer
   let customerId = profile?.stripe_customer_id
@@ -32,7 +53,6 @@ export async function POST(req: NextRequest) {
     await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user!.id)
   }
 
-  const priceId = parsed.data.billing_period === 'annual' ? PRICES.annual : PRICES.monthly
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
   const session = await stripe.checkout.sessions.create({
@@ -42,8 +62,8 @@ export async function POST(req: NextRequest) {
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/account/status?subscription=success`,
     cancel_url: `${appUrl}/mining?subscription=cancelled`,
-    metadata: { user_id: user!.id, billing_period: parsed.data.billing_period },
-    subscription_data: { metadata: { user_id: user!.id } },
+    metadata: { user_id: user!.id, plan },
+    subscription_data: { metadata: { user_id: user!.id, plan } },
   })
 
   return NextResponse.json({ url: session.url })
