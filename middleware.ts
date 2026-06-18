@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/', '/login', '/register', '/pricing', '/auth/callback', '/api/auth', '/api/stripe/webhook', '/api/ui']
+// Exact matches (e.g. '/' must not catch '/dashboard')
+const PUBLIC_EXACT = new Set(['/', '/pricing'])
+// Prefix matches — any path starting with these is public
+const PUBLIC_PREFIX = [
+  '/login', '/register',
+  '/auth/callback',
+  '/privacy', '/terms', '/security', '/support',
+  '/deposit/success', '/deposit/cancel',
+  '/api/auth', '/api/stripe/webhook', '/api/ui',
+]
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -27,7 +36,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow public paths
-  const isPublic = PUBLIC_PATHS.some(p => pathname.startsWith(p))
+  const isPublic =
+    PUBLIC_EXACT.has(pathname) ||
+    PUBLIC_PREFIX.some(p => pathname.startsWith(p))
   if (isPublic) return supabaseResponse
 
   // Redirect unauthenticated users to login

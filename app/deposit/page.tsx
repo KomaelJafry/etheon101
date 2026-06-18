@@ -39,6 +39,34 @@ function DepositPageInner() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
+  // Subscribe card state
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
+
+  async function handleSubscribe() {
+    if (!profile) { window.location.href = '/login?next=/deposit'; return; }
+    setSubLoading(true);
+    setSubError(null);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billing_period: 'monthly' }),
+      });
+      const json = await res.json().catch(() => ({})) as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        setSubError(res.status === 401 ? 'Please log in again to continue.' : (json.error ?? 'Unable to start checkout. Please try again.'));
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setSubError('Network error. Please try again.');
+    } finally {
+      setSubLoading(false);
+    }
+  }
+
   useEffect(() => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,9 +103,17 @@ function DepositPageInner() {
   }
 
   async function startCheckout() {
+    if (!profile) {
+      window.location.href = '/login?next=/deposit';
+      return;
+    }
     const amountUsd = parseFloat(amountInput);
-    if (!Number.isFinite(amountUsd) || amountUsd < 10 || amountUsd > 10000) {
-      setCheckoutError('Enter an amount between $10 and $10,000');
+    if (!amountInput || !Number.isFinite(amountUsd)) {
+      setCheckoutError('Enter a deposit amount.');
+      return;
+    }
+    if (amountUsd < 10 || amountUsd > 10000) {
+      setCheckoutError('Enter an amount between $10 and $10,000.');
       return;
     }
     setCheckoutLoading(true);
@@ -85,12 +121,24 @@ function DepositPageInner() {
     try {
       const res = await fetch('/api/stripe/deposit', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount_usd: amountUsd }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({})) as { error?: string; url?: string };
       if (!res.ok) {
-        setCheckoutError(json.error ?? 'Could not start checkout. Please try again.');
+        if (res.status === 401) {
+          setCheckoutError('Please log in again to continue.');
+        } else if (res.status === 400) {
+          setCheckoutError(json.error ?? 'Invalid amount. Please check and try again.');
+        } else {
+          setCheckoutError(json.error ?? 'Unable to start payment. Please try again.');
+        }
+        setCheckoutLoading(false);
+        return;
+      }
+      if (!json.url) {
+        setCheckoutError('Unable to start payment. Please try again.');
         setCheckoutLoading(false);
         return;
       }
@@ -163,7 +211,15 @@ function DepositPageInner() {
           {/* ── LEFT COLUMN ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
-            {/* ── PRIMARY: Custom-amount Stripe checkout ── */}
+            {/* ── Logged-out notice ── */}
+            {!profile && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderRadius: '16px', background: 'rgba(255,181,92,0.08)', border: '1px solid rgba(255,181,92,0.25)', fontSize: '13.5px', color: '#FFB55C', fontWeight: 600 }}>
+                <Icon name="lock" size={17} color="#FFB55C" style={{ flexShrink: 0 }} />
+                <span>Please <a href="/login?next=/deposit" style={{ color: '#FFB55C', textDecoration: 'underline' }}>log in</a> to make a deposit.</span>
+              </div>
+            )}
+
+          {/* ── PRIMARY: Custom-amount Stripe checkout ── */}
             <div style={{ borderRadius: '26px', padding: '28px', background: 'linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                 <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(124,92,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -324,7 +380,10 @@ function DepositPageInner() {
               currentUsd={balanceUsd}
               targetUsd={miningThreshold}
               ctaLabel={!isSubscribed ? 'Subscribe to unlock' : miningUnlocked ? 'Go to mining' : 'Keep adding funds'}
-              ctaHref={!isSubscribed ? '/api/stripe/checkout' : miningUnlocked ? '/mining' : '/deposit'}
+              ctaHref={!isSubscribed ? '#' : miningUnlocked ? '/mining' : '/deposit'}
+              onCtaClick={!isSubscribed ? handleSubscribe : undefined}
+              ctaLoading={!isSubscribed ? subLoading : undefined}
+              ctaError={!isSubscribed ? subError : undefined}
               unlocked={miningUnlocked}
               unlockedLabel="Mining active"
             />
