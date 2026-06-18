@@ -10,13 +10,14 @@ export async function POST(req: NextRequest) {
   let body: unknown
   try { body = await req.json() } catch { body = null }
 
-  const raw = (body as Record<string, unknown>)?.amount_usd
-  const amountUsd = typeof raw === 'number' ? raw : parseFloat(String(raw ?? ''))
-  if (!Number.isFinite(amountUsd) || amountUsd < 10 || amountUsd > 10000) {
-    return NextResponse.json({ error: 'Amount must be between $10 and $10,000' }, { status: 400 })
+  // Accept amount_gbp (new) or amount_usd (legacy field name — treated as GBP)
+  const raw = (body as Record<string, unknown>)?.amount_gbp ?? (body as Record<string, unknown>)?.amount_usd
+  const amountGbp = typeof raw === 'number' ? raw : parseFloat(String(raw ?? ''))
+  if (!Number.isFinite(amountGbp) || amountGbp < 10 || amountGbp > 10000) {
+    return NextResponse.json({ error: 'Amount must be between £10 and £10,000' }, { status: 400 })
   }
 
-  const amountCents = Math.round(amountUsd * 100)
+  const amountCents = Math.round(amountGbp * 100)
   const supabase = await createServiceClient()
 
   const { data: profile } = await supabase
@@ -43,10 +44,10 @@ export async function POST(req: NextRequest) {
     payment_method_types: ['card'],
     line_items: [{
       price_data: {
-        currency: 'usd',
+        currency: 'gbp',
         unit_amount: amountCents,
         product_data: {
-          name: `Etheon balance deposit — $${amountUsd.toFixed(2)}`,
+          name: 'Etheon Funds Deposit',
           description: 'Funds will be reviewed and credited to your Etheon balance after admin confirmation.',
         },
       },
@@ -57,7 +58,8 @@ export async function POST(req: NextRequest) {
     metadata: {
       user_id: user!.id,
       type: 'deposit',
-      amount_usd: String(amountUsd),
+      currency: 'gbp',
+      amount_gbp: String(amountGbp),
     },
   })
 

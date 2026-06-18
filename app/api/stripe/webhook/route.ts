@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
           const { error: updateErr } = await supabase.from('payment_events').update({
             user_id: userId,
             amount_cents: session.amount_total ?? 0,
-            currency: session.currency ?? 'usd',
+            currency: session.currency ?? 'gbp',
             status: 'pending_review',
           }).eq('stripe_event_id', event.id)
           if (updateErr) {

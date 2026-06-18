@@ -82,9 +82,9 @@ function DepositPageInner() {
     })();
   }, []);
 
-  function selectPreset(usd: number) {
-    setSelectedPreset(usd);
-    setAmountInput(String(usd));
+  function selectPreset(gbp: number) {
+    setSelectedPreset(gbp);
+    setAmountInput(String(gbp));
     setCheckoutError(null);
   }
 
@@ -100,13 +100,13 @@ function DepositPageInner() {
       window.location.href = '/login?next=/deposit';
       return;
     }
-    const amountUsd = parseFloat(amountInput);
-    if (!amountInput || !Number.isFinite(amountUsd)) {
+    const amountGbp = parseFloat(amountInput);
+    if (!amountInput || !Number.isFinite(amountGbp)) {
       setCheckoutError('Enter a deposit amount.');
       return;
     }
-    if (amountUsd < 10 || amountUsd > 10000) {
-      setCheckoutError('Enter an amount between $10 and $10,000.');
+    if (amountGbp < 10 || amountGbp > 10000) {
+      setCheckoutError('Amount must be between £10 and £10,000.');
       return;
     }
     setCheckoutLoading(true);
@@ -116,7 +116,7 @@ function DepositPageInner() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount_usd: amountUsd }),
+        body: JSON.stringify({ amount_gbp: amountGbp }),
       });
       const json = await res.json().catch(() => ({})) as { error?: string; url?: string };
       if (!res.ok) {
@@ -158,12 +158,13 @@ function DepositPageInner() {
     }).catch(() => {});
   }
 
-  const balanceUsd        = (profile?.eth_balance ?? 0) * ethPrice;
+  // Historical column names use "usd" but values are managed as GBP going forward
+  const balanceGbp        = (profile?.eth_balance ?? 0) * ethPrice;
   const miningThreshold   = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const isSubscribed      = profile?.is_active ?? false;
-  const miningUnlocked    = isSubscribed && balanceUsd >= miningThreshold;
-  const withdrawalUnlocked = balanceUsd >= withdrawThreshold;
+  const miningUnlocked    = isSubscribed && balanceGbp >= miningThreshold;
+  const withdrawalUnlocked = balanceGbp >= withdrawThreshold;
 
   const pageTitle    = get('payment', 'payment_options_title',    'Add funds to your account');
   const pageSubtitle = get('payment', 'payment_options_subtitle', 'Enter any amount and pay securely with Stripe. Your balance will be reviewed and credited by an admin.');
@@ -228,20 +229,20 @@ function DepositPageInner() {
               <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#7E7A8F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Quick select</div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {PRESETS.map(usd => (
+                  {PRESETS.map(gbp => (
                     <button
-                      key={usd}
-                      onClick={() => selectPreset(usd)}
+                      key={gbp}
+                      onClick={() => selectPreset(gbp)}
                       style={{
                         height: '40px', padding: '0 16px', borderRadius: '12px', cursor: 'pointer',
                         fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '14px',
-                        background: selectedPreset === usd ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${selectedPreset === usd ? 'rgba(124,92,255,0.5)' : 'rgba(255,255,255,0.09)'}`,
-                        color: selectedPreset === usd ? '#C9BBFF' : '#8A8699',
+                        background: selectedPreset === gbp ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${selectedPreset === gbp ? 'rgba(124,92,255,0.5)' : 'rgba(255,255,255,0.09)'}`,
+                        color: selectedPreset === gbp ? '#C9BBFF' : '#8A8699',
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      ${usd}
+                      £{gbp}
                     </button>
                   ))}
                 </div>
@@ -251,7 +252,7 @@ function DepositPageInner() {
               <div style={{ marginBottom: '18px' }}>
                 <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#7E7A8F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Or enter any amount</div>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '18px', color: '#6F6B82', pointerEvents: 'none' }}>$</span>
+                  <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '18px', color: '#6F6B82', pointerEvents: 'none' }}>£</span>
                   <input
                     type="number"
                     min="10"
@@ -290,7 +291,7 @@ function DepositPageInner() {
               >
                 {checkoutLoading
                   ? <><Icon name="hourglass_empty" size={18} color="#fff" />Opening Stripe…</>
-                  : <><Icon name="lock" size={18} color="#fff" />Continue to payment{amountInput && parseFloat(amountInput) >= 10 ? ` — $${parseFloat(amountInput).toFixed(2)}` : ''}</>
+                  : <><Icon name="lock" size={18} color="#fff" />Continue to payment{amountInput && parseFloat(amountInput) >= 10 ? ` — £${parseFloat(amountInput).toFixed(2)}` : ''}</>
                 }
               </button>
 
@@ -359,7 +360,7 @@ function DepositPageInner() {
             <div style={{ borderRadius: '26px', padding: '22px 24px', background: 'linear-gradient(160deg,rgba(124,92,255,0.14),rgba(255,255,255,0.02))', border: '1px solid rgba(124,92,255,0.2)' }}>
               <div style={{ fontSize: '12.5px', color: '#A39FB5', fontWeight: 600, marginBottom: '6px' }}>Current balance</div>
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '36px', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                ${balanceUsd.toFixed(2)}
+                £{balanceGbp.toFixed(2)}
               </div>
               <div style={{ fontSize: '13px', color: '#6F6B82', marginTop: '6px' }}>
                 {(profile?.eth_balance ?? 0).toFixed(6)} ETH
@@ -369,8 +370,8 @@ function DepositPageInner() {
             {/* Mining unlock progress */}
             <UnlockProgressCard
               title="Unlock Rewards Mining"
-              body={`Reach $${miningThreshold} balance${!isSubscribed ? ' and subscribe' : ''} to activate your daily rewards session.`}
-              currentUsd={balanceUsd}
+              body={`Reach £${miningThreshold} balance${!isSubscribed ? ' and subscribe' : ''} to activate your daily rewards session.`}
+              currentUsd={balanceGbp}
               targetUsd={miningThreshold}
               ctaLabel={!isSubscribed ? 'Subscribe to unlock' : miningUnlocked ? 'Go to mining' : 'Keep adding funds'}
               ctaHref={!isSubscribed ? '#' : miningUnlocked ? '/mining' : '/deposit'}
@@ -384,8 +385,8 @@ function DepositPageInner() {
             {/* Withdrawal unlock progress */}
             <UnlockProgressCard
               title="Withdrawal Unlock Progress"
-              body={`Your rewards are accumulating. Withdrawals unlock at $${withdrawThreshold.toLocaleString()} total balance.`}
-              currentUsd={balanceUsd}
+              body={`Your rewards are accumulating. Withdrawals unlock at £${withdrawThreshold.toLocaleString()} total balance.`}
+              currentUsd={balanceGbp}
               targetUsd={withdrawThreshold}
               ctaLabel={withdrawalUnlocked ? 'Request withdrawal' : 'Continue adding funds'}
               ctaHref={withdrawalUnlocked ? '/withdrawals' : '/deposit'}

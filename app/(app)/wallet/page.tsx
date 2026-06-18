@@ -70,10 +70,10 @@ export default function WalletPage() {
     : depositAddress;
 
   const assets = [
-    { name: 'Ethereum', sym: 'ETH', bal: ethBalance.toFixed(6), val: `$${usdValue}`, chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#627EEA,#4A6CF7)', icon: 'diamond' },
-    { name: 'Tether USD', sym: 'USDT', bal: '0.00', val: '$0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#1a9e7a,#26c79b)', icon: 'attach_money' },
-    { name: 'USD Coin', sym: 'USDC', bal: '0.00', val: '$0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#2775CA,#4A9EF7)', icon: 'paid' },
-    { name: 'Wrapped BTC', sym: 'WBTC', bal: '0.00000000', val: '$0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#F7931A,#FFB347)', icon: 'currency_bitcoin' },
+    { name: 'Ethereum', sym: 'ETH', bal: ethBalance.toFixed(6), val: `£${usdValue}`, chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#627EEA,#4A6CF7)', icon: 'diamond' },
+    { name: 'Tether USD', sym: 'USDT', bal: '0.00', val: '£0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#1a9e7a,#26c79b)', icon: 'attach_money' },
+    { name: 'USD Coin', sym: 'USDC', bal: '0.00', val: '£0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#2775CA,#4A9EF7)', icon: 'paid' },
+    { name: 'Wrapped BTC', sym: 'WBTC', bal: '0.00000000', val: '£0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#F7931A,#FFB347)', icon: 'currency_bitcoin' },
   ];
 
   return (
@@ -88,7 +88,7 @@ export default function WalletPage() {
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '13px', color: '#A39FB5', fontWeight: 600 }}>Wallet value</div>
-              {loading ? <Skeleton h={44} w="60%" r={8} /> : <div className="sg" style={{ fontWeight: 600, fontSize: '40px', letterSpacing: '-0.03em', marginTop: '8px', lineHeight: 1 }}>${usdValue}</div>}
+              {loading ? <Skeleton h={44} w="60%" r={8} /> : <div className="sg" style={{ fontWeight: 600, fontSize: '40px', letterSpacing: '-0.03em', marginTop: '8px', lineHeight: 1 }}>£{usdValue}</div>}
               <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '8px' }}>Across {assets.filter(a => parseFloat(a.bal) > 0).length + 3} assets</div>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>

@@ -22,7 +22,7 @@ export default function LandingPage() {
     return () => clearInterval(id);
   }, []);
 
-  const sessionUsd = `$${(sessionEth * ethPrice).toFixed(2)}`;
+  const sessionUsd = `£${(sessionEth * ethPrice).toFixed(2)}`;
   const sessionEthStr = sessionEth.toFixed(6);
 
   return (

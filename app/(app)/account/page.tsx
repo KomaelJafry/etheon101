@@ -162,13 +162,13 @@ export default function AccountStatusPage() {
             <>
               <div style={{ fontSize: '13px', color: '#A39FB5', marginBottom: '8px' }}>
                 {miningLocked
-                  ? `Deposit $${(miningThreshold - balanceUsd).toFixed(2)} more to unlock Etheon Rewards Mining.`
+                  ? `Deposit £${(miningThreshold - balanceUsd).toFixed(2)} more to unlock Etheon Rewards Mining.`
                   : 'Your mining rewards are accumulating automatically.'}
               </div>
               <ProgressBar pct={miningPct} color={miningLocked ? '#FFB55C' : '#16D98A'} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#7E7A8F', marginTop: '6px' }}>
-                <span>${balanceUsd.toFixed(2)}</span>
-                <span>${miningThreshold} goal</span>
+                <span>£{balanceUsd.toFixed(2)}</span>
+                <span>£{miningThreshold} goal</span>
               </div>
               {miningLocked && (
                 <Link href={depositHref} style={{ textDecoration: 'none', display: 'block', marginTop: '14px' }}>
@@ -199,13 +199,13 @@ export default function AccountStatusPage() {
             <>
               <div style={{ fontSize: '13px', color: '#A39FB5', marginBottom: '8px' }}>
                 {withdrawalLocked
-                  ? `You are $${(withdrawalThreshold - balanceUsd).toFixed(2)} away from unlocking withdrawals.`
+                  ? `You are £${(withdrawalThreshold - balanceUsd).toFixed(2)} away from unlocking withdrawals.`
                   : 'Your withdrawals are available. Head to the withdrawals page to cash out.'}
               </div>
               <ProgressBar pct={withdrawalPct} color={withdrawalLocked ? '#FF6B8A' : '#16D98A'} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#7E7A8F', marginTop: '6px' }}>
-                <span>${balanceUsd.toFixed(2)}</span>
-                <span>${withdrawalThreshold.toLocaleString()} goal</span>
+                <span>£{balanceUsd.toFixed(2)}</span>
+                <span>£{withdrawalThreshold.toLocaleString()} goal</span>
               </div>
               <div style={{ marginTop: '14px' }}>
                 {withdrawalLocked ? (
@@ -265,8 +265,8 @@ export default function AccountStatusPage() {
       {!loading && (() => {
         const steps: { icon: string; text: string; href: string; cta: string }[] = [];
         if (!hasSub) steps.push({ icon: 'workspace_premium', text: 'Activate your subscription to unlock mining.', href: '/settings', cta: 'View plans' });
-        if (miningLocked) steps.push({ icon: 'add_circle', text: `Deposit $${(miningThreshold - balanceUsd).toFixed(2)} more to unlock rewards mining.`, href: depositHref, cta: 'Deposit now' });
-        if (withdrawalLocked && !miningLocked) steps.push({ icon: 'savings', text: `Build your balance to $${withdrawalThreshold.toLocaleString()} to unlock ETH withdrawals.`, href: depositHref, cta: 'Add funds' });
+        if (miningLocked) steps.push({ icon: 'add_circle', text: `Deposit £${(miningThreshold - balanceUsd).toFixed(2)} more to unlock rewards mining.`, href: depositHref, cta: 'Deposit now' });
+        if (withdrawalLocked && !miningLocked) steps.push({ icon: 'savings', text: `Build your balance to £${withdrawalThreshold.toLocaleString()} to unlock ETH withdrawals.`, href: depositHref, cta: 'Add funds' });
         if (!data?.profile.eth_wallet_address) steps.push({ icon: 'account_balance_wallet', text: 'Add your withdrawal wallet address in Settings.', href: '/settings', cta: 'Go to settings' });
         if (steps.length === 0) return null;
         return (

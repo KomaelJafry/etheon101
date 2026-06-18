@@ -56,6 +56,7 @@ export default function MiningPage() {
   const dailyRewardUsd = get('mining', 'mining_daily_reward_usd', '20');
   const poolName = get('mining', 'pool_name', 'Etheon Rewards Pool');
 
+  // Historical variable name kept for prop compatibility; value is treated as GBP
   const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
   const isSubscribed = profile?.is_active ?? false;
   const hasMinBalance = balanceUsd >= miningThreshold;
@@ -188,11 +189,11 @@ export default function MiningPage() {
             ) : (
               <>
                 <div style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, marginBottom:'10px' }}>
-                  {get('mining','mining_locked_balance_text',`Deposit at least $${miningThreshold} to activate rewards mining.`)}
+                  {get('mining','mining_locked_balance_text',`Deposit at least £${miningThreshold} to activate rewards mining.`)}
                 </div>
                 <UnlockProgressCard
                   title="Deposit to unlock mining"
-                  body={`Reach $${miningThreshold} balance to start earning daily rewards.`}
+                  body={`Reach £${miningThreshold} balance to start earning daily rewards.`}
                   currentUsd={balanceUsd}
                   targetUsd={miningThreshold}
                   ctaLabel="Add funds"
@@ -223,7 +224,7 @@ export default function MiningPage() {
             <MiningMascot
               state={mascotState}
               sessionPct={sessionPct}
-              pendingRewardUsd={sessionPct >= 99 ? `$${dailyRewardUsd}` : undefined}
+              pendingRewardUsd={sessionPct >= 99 ? `£${dailyRewardUsd}` : undefined}
             />
             <div style={{ position:'relative', width:'220px', height:'220px', flexShrink:0 }}>
               <svg viewBox="0 0 300 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%', animation:'etheonSpin 22s linear infinite', opacity:0.4 }}>
@@ -252,7 +253,7 @@ export default function MiningPage() {
                 <div style={{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(255,255,255,0.1)', width:'110px', textAlign:'center' }}>
                   <div style={{ fontSize:'10px', color:'#8A8699', fontWeight:700, letterSpacing:'0.05em' }}>SESSION EARNED</div>
                   <div className="sg" style={{ fontWeight:700, fontSize:'18px', color:'#16D98A', marginTop:'3px', letterSpacing:'-0.01em' }}>{fmt(sessionEth)}</div>
-                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>ETH · ${sessionUsd}</div>
+                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>ETH · £{sessionUsd}</div>
                 </div>
               </div>
             </div>
@@ -281,7 +282,7 @@ export default function MiningPage() {
           {withdrawalLocked && isEligible && (
             <div style={{ marginTop:'12px', padding:'10px 13px', borderRadius:'12px', background:'rgba(255,181,92,0.08)', border:'1px solid rgba(255,181,92,0.2)', fontSize:'12px', color:'#FFB55C', display:'flex', gap:'8px', alignItems:'flex-start' }}>
               <Icon name="info" size={16} color="#FFB55C" style={{ flexShrink:0, marginTop:'1px' }} />
-              {get('mining','withdrawal_locked_text',`Rewards remain pending until your total balance reaches $${withdrawThreshold.toLocaleString()}. Keep mining to unlock withdrawals.`)}
+              {get('mining','withdrawal_locked_text',`Rewards remain pending until your total balance reaches £${withdrawThreshold.toLocaleString()}. Keep mining to unlock withdrawals.`)}
             </div>
           )}
         </div>
@@ -352,7 +353,7 @@ export default function MiningPage() {
                 <span style={{ fontSize:'13.5px', color:'#C5C1D6', fontWeight:600 }}>{r.label}</span>
                 <div style={{ textAlign:'right' }}>
                   <div className="sg" style={{ fontWeight:700, fontSize:'15px' }}>{r.eth} ETH</div>
-                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>${r.usd}</div>
+                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>£{r.usd}</div>
                 </div>
               </div>
             ))}
@@ -366,7 +367,7 @@ export default function MiningPage() {
         {/* Withdrawal progress */}
         <UnlockProgressCard
           title="Withdrawal unlock progress"
-          body={`Withdrawals unlock at $${withdrawThreshold.toLocaleString()} total balance. Keep mining to reach your goal.`}
+          body={`Withdrawals unlock at £${withdrawThreshold.toLocaleString()} total balance. Keep mining to reach your goal.`}
           currentUsd={balanceUsd}
           targetUsd={withdrawThreshold}
           ctaLabel={withdrawalLocked ? 'Add funds' : 'Request withdrawal'}

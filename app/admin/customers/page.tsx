@@ -249,7 +249,7 @@ export default function CustomersPage() {
 
                 {/* Balance */}
                 <div>
-                  <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '13px', color: '#16D98A' }}>${usd.toFixed(2)}</div>
+                  <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '13px', color: '#16D98A' }}>£{usd.toFixed(2)}</div>
                   <div style={{ fontSize: '10.5px', color: '#6F6B82', marginTop: '1px' }}>{(c.eth_balance || 0).toFixed(5)} ETH</div>
                 </div>
 

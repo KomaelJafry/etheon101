@@ -137,7 +137,7 @@ export default function TransactionsPage() {
                   <span className="sg" style={{ fontWeight: 600, fontSize: '13.5px', color: positive ? '#16D98A' : '#FF6B8A' }}>
                     {positive ? '+' : ''}{t.amount_eth.toFixed(6)} ETH
                   </span>
-                  <span style={{ fontSize: '13px', color: '#A39FB5' }}>${Math.abs(t.amount_eth * ethPrice).toFixed(2)}</span>
+                  <span style={{ fontSize: '13px', color: '#A39FB5' }}>£{Math.abs(t.amount_eth * ethPrice).toFixed(2)}</span>
                   <span className="sg" style={{ fontSize: '12.5px', color: '#7E7A8F' }}>{shortHash(t.id)}</span>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '11.5px', fontWeight: 700, color: s.color, background: s.bg, padding: '5px 11px', borderRadius: '999px', textTransform: 'capitalize' }}>{t.status}</span>

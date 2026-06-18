@@ -122,9 +122,9 @@ export default function DashboardPage() {
   const util    = profile && profile.hashrate_capacity_th > 0 ? Math.round((profile.hashrate_th / profile.hashrate_capacity_th) * 100) : 50;
 
   const allocation = [
-    { label: 'Active miners',   val: `$${(liveEth * ethPrice * 0.62).toFixed(2)}`, pct: 62, color: '#9b7bff' },
-    { label: 'Wallet balance',  val: `$${(liveEth * ethPrice * 0.27).toFixed(2)}`, pct: 27, color: '#6e8bff' },
-    { label: 'Pending rewards', val: `$${(liveEth * ethPrice * 0.11).toFixed(2)}`, pct: 11, color: '#16D98A' },
+    { label: 'Active miners',   val: `£${(liveEth * ethPrice * 0.62).toFixed(2)}`, pct: 62, color: '#9b7bff' },
+    { label: 'Wallet balance',  val: `£${(liveEth * ethPrice * 0.27).toFixed(2)}`, pct: 27, color: '#6e8bff' },
+    { label: 'Pending rewards', val: `£${(liveEth * ethPrice * 0.11).toFixed(2)}`, pct: 11, color: '#16D98A' },
   ];
 
   const quickActions = [
@@ -188,7 +188,7 @@ export default function DashboardPage() {
               </div>
               {isLoading ? <SkeletonCard h={52} /> : (
                 <div style={{ display:'flex', alignItems:'flex-end', gap:'12px', marginTop:'10px' }}>
-                  <div className="sg" style={{ fontWeight:700, fontSize:'44px', letterSpacing:'-0.03em', lineHeight:'0.95' }}>${usdBal}</div>
+                  <div className="sg" style={{ fontWeight:700, fontSize:'44px', letterSpacing:'-0.03em', lineHeight:'0.95' }}>£{usdBal}</div>
                   <div style={{ display:'flex', alignItems:'center', gap:'4px', background:'rgba(22,217,138,0.14)', color:'#16D98A', fontWeight:700, fontSize:'12.5px', padding:'4px 10px', borderRadius:'999px', marginBottom:'5px' }}>
                     <Icon name="trending_up" size={14} color="#16D98A" />+2.41%
                   </div>
@@ -287,7 +287,7 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ textAlign:'right' }}>
                   <div className="sg" style={{ fontWeight:700, fontSize:'13.5px', color:positive?'#16D98A':'#FF6B8A' }}>{positive?'+':''}{t.amount_eth.toFixed(6)} ETH</div>
-                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'2px' }}>${Math.abs(t.amount_eth * ethPrice).toFixed(2)}</div>
+                  <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'2px' }}>£{Math.abs(t.amount_eth * ethPrice).toFixed(2)}</div>
                 </div>
               </div>
             );
@@ -364,7 +364,7 @@ export default function DashboardPage() {
         {/* Mining unlock progress */}
         <UnlockProgressCard
           title={get('mining','mining_unlock_title','Unlock Rewards Mining')}
-          body={get('mining','mining_unlock_body',`Reach $${miningThreshold} balance and subscribe to start earning daily rewards.`)}
+          body={get('mining','mining_unlock_body',`Reach £${miningThreshold} balance and subscribe to start earning daily rewards.`)}
           currentUsd={balanceUsd}
           targetUsd={miningThreshold}
           ctaLabel={!isSubscribed ? 'Subscribe to unlock' : get('mining','mining_unlock_cta_label','Add funds to unlock')}
@@ -379,7 +379,7 @@ export default function DashboardPage() {
         {/* Withdrawal unlock progress */}
         <UnlockProgressCard
           title={get('mining','withdrawal_unlock_title','Withdrawal Unlock Progress')}
-          body={get('mining','withdrawal_unlock_body',`Withdrawals unlock at $${withdrawThreshold.toLocaleString()} total balance.`)}
+          body={get('mining','withdrawal_unlock_body',`Withdrawals unlock at £${withdrawThreshold.toLocaleString()} total balance.`)}
           currentUsd={balanceUsd}
           targetUsd={withdrawThreshold}
           ctaLabel={withdrawalUnlocked ? get('mining','withdrawal_unlock_cta_label','Request withdrawal') : 'Build your balance'}

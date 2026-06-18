@@ -65,8 +65,8 @@ export default function WithdrawalsPage() {
       {/* Withdrawal lock notice */}
       {withdrawalLocked && (
         <UnlockProgressCard
-          title={get('mining','withdrawal_unlock_title','Withdrawals unlock at $1,000')}
-          body={get('mining','withdrawal_unlock_body',`Build your balance to $${withdrawThreshold.toLocaleString()} to unlock ETH withdrawals. Your rewards are safely accumulating.`)}
+          title={get('mining','withdrawal_unlock_title','Withdrawals unlock at £1,000')}
+          body={get('mining','withdrawal_unlock_body',`Build your balance to £${withdrawThreshold.toLocaleString()} to unlock ETH withdrawals. Your rewards are safely accumulating.`)}
           currentUsd={balanceUsd}
           targetUsd={withdrawThreshold}
           ctaLabel="Add funds"
@@ -86,7 +86,7 @@ export default function WithdrawalsPage() {
         {withdrawalLocked && (
           <div style={{ padding: '12px 15px', borderRadius: '14px', marginBottom: '18px', background: 'rgba(255,181,92,0.1)', border: '1px solid rgba(255,181,92,0.3)', fontSize: '13px', color: '#FFB55C', display: 'flex', gap: '9px', alignItems: 'flex-start' }}>
             <Icon name="lock" size={16} color="#FFB55C" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>{get('mining','withdrawal_locked_text',`Withdrawals unlock when your total balance reaches $${withdrawThreshold.toLocaleString()}. Your current balance is $${balanceUsd.toFixed(2)}.`)}</span>
+            <span>{get('mining','withdrawal_locked_text',`Withdrawals unlock when your total balance reaches £${withdrawThreshold.toLocaleString()}. Your current balance is £${balanceUsd.toFixed(2)}.`)}</span>
           </div>
         )}
 

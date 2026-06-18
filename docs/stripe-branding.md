@@ -27,6 +27,10 @@ Upload to **Dashboard → Settings → Branding** (or Stripe CLI `stripe brandin
 | Warning | `#F5B642` |
 | Error | `#FF5F7A` |
 
+## Deposit currency
+
+All card deposits are charged in **GBP (£)**. The Stripe Checkout session `currency` is `"gbp"`. If your Stripe account is not set up for GBP payouts, enable GBP in **Dashboard → Settings → Bank accounts and scheduling**.
+
 ## Stripe Dashboard settings
 
 ### Settings → Branding

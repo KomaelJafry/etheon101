@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   const balanceUsd = profile.eth_balance * ethPrice;
   if (balanceUsd < thresholdUsd) {
     return NextResponse.json({
-      error: `Withdrawals unlock when your total balance reaches $${thresholdUsd.toLocaleString()}. Your current balance is $${balanceUsd.toFixed(2)}.`,
+      error: `Withdrawals unlock when your total balance reaches £${thresholdUsd.toLocaleString()}. Your current balance is £${balanceUsd.toFixed(2)}.`,
     }, { status: 403 });
   }
 

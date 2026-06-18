@@ -473,10 +473,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <SectionTitle icon="account_balance_wallet" title="Balance overview" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px' }}>
                 {[
-                  { label: 'ETH balance', val: `${ethBalance.toFixed(6)} ETH`, sub: `$${balanceUsd.toFixed(2)} USD`, color: '#16D98A' },
-                  { label: 'USD value', val: `$${balanceUsd.toFixed(2)}`, sub: `@ $${ethPrice.toLocaleString()}/ETH`, color: '#C9BBFF' },
-                  { label: 'Mining threshold', val: `$${config.miningThreshold}`, sub: miningLocked ? `$${(config.miningThreshold - balanceUsd).toFixed(2)} remaining` : 'Unlocked', color: '#FFB55C' },
-                  { label: 'Withdrawal threshold', val: `$${config.withdrawalThreshold}`, sub: withdrawalLocked ? `$${(config.withdrawalThreshold - balanceUsd).toFixed(2)} remaining` : 'Unlocked', color: '#9b7bff' },
+                  { label: 'ETH balance', val: `${ethBalance.toFixed(6)} ETH`, sub: `£${balanceUsd.toFixed(2)}`, color: '#16D98A' },
+                  { label: 'GBP value', val: `£${balanceUsd.toFixed(2)}`, sub: `@ £${ethPrice.toLocaleString()}/ETH`, color: '#C9BBFF' },
+                  { label: 'Mining threshold', val: `£${config.miningThreshold}`, sub: miningLocked ? `£${(config.miningThreshold - balanceUsd).toFixed(2)} remaining` : 'Unlocked', color: '#FFB55C' },
+                  { label: 'Withdrawal threshold', val: `£${config.withdrawalThreshold}`, sub: withdrawalLocked ? `£${(config.withdrawalThreshold - balanceUsd).toFixed(2)} remaining` : 'Unlocked', color: '#9b7bff' },
                 ].map(s => (
                   <div key={s.label} style={{ padding: '16px 18px', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: '#7E7A8F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>{s.label}</div>
@@ -495,10 +495,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <ProgressBar pct={miningPct} color={miningLocked ? '#FFB55C' : '#16D98A'} />
               <div style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '13px', background: miningLocked ? 'rgba(255,181,92,0.08)' : 'rgba(22,217,138,0.08)', border: `1px solid ${miningLocked ? 'rgba(255,181,92,0.2)' : 'rgba(22,217,138,0.2)'}` }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: miningLocked ? '#FFB55C' : '#16D98A' }}>
-                  {miningLocked ? `$${(config.miningThreshold - balanceUsd).toFixed(2)} more needed` : 'Mining unlocked'}
+                  {miningLocked ? `£${(config.miningThreshold - balanceUsd).toFixed(2)} more needed` : 'Mining unlocked'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#7E7A8F', marginTop: '3px' }}>
-                  {miningLocked ? `Balance $${balanceUsd.toFixed(2)} / Threshold $${config.miningThreshold}` : `Balance exceeds $${config.miningThreshold} threshold`}
+                  {miningLocked ? `Balance £${balanceUsd.toFixed(2)} / Threshold £${config.miningThreshold}` : `Balance exceeds £${config.miningThreshold} threshold`}
                 </div>
               </div>
             </Card>
@@ -511,10 +511,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <ProgressBar pct={withdrawalPct} color={withdrawalLocked ? '#FF6B8A' : '#16D98A'} />
               <div style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '13px', background: withdrawalLocked ? 'rgba(255,107,138,0.08)' : 'rgba(22,217,138,0.08)', border: `1px solid ${withdrawalLocked ? 'rgba(255,107,138,0.2)' : 'rgba(22,217,138,0.2)'}` }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: withdrawalLocked ? '#FF6B8A' : '#16D98A' }}>
-                  {withdrawalLocked ? `$${(config.withdrawalThreshold - balanceUsd).toFixed(2)} more needed` : 'Withdrawals unlocked'}
+                  {withdrawalLocked ? `£${(config.withdrawalThreshold - balanceUsd).toFixed(2)} more needed` : 'Withdrawals unlocked'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#7E7A8F', marginTop: '3px' }}>
-                  {withdrawalLocked ? `Balance $${balanceUsd.toFixed(2)} / Threshold $${config.withdrawalThreshold.toLocaleString()}` : `Balance exceeds $${config.withdrawalThreshold.toLocaleString()} threshold`}
+                  {withdrawalLocked ? `Balance £${balanceUsd.toFixed(2)} / Threshold £${config.withdrawalThreshold.toLocaleString()}` : `Balance exceeds £${config.withdrawalThreshold.toLocaleString()} threshold`}
                 </div>
               </div>
             </Card>
@@ -613,7 +613,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#7E7A8F', marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount (ETH) <span style={{ color: '#FF6B8A' }}>*</span></label>
                   <input type="number" step="0.0001" min="0.0001" value={adjForm.amount_eth} onChange={e => setAdjForm(p => ({ ...p, amount_eth: e.target.value }))} placeholder="0.0000" style={{ width: '100%', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F4F3FA', fontFamily: "'Space Grotesk'", fontSize: '16px', outline: 'none' }} />
-                  {adjForm.amount_eth && <div style={{ fontSize: '12px', color: '#7E7A8F', marginTop: '5px' }}>≈ ${(parseFloat(adjForm.amount_eth || '0') * ethPrice).toFixed(2)} USD at current price</div>}
+                  {adjForm.amount_eth && <div style={{ fontSize: '12px', color: '#7E7A8F', marginTop: '5px' }}>≈ £{(parseFloat(adjForm.amount_eth || '0') * ethPrice).toFixed(2)} GBP at current price</div>}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#7E7A8F', marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason (audit-logged) <span style={{ color: '#FF6B8A' }}>*</span></label>
@@ -649,7 +649,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <SectionTitle icon="account_balance_wallet" title="Current balance" />
               <div style={{ padding: '20px', borderRadius: '16px', background: 'rgba(22,217,138,0.06)', border: '1px solid rgba(22,217,138,0.15)', textAlign: 'center', marginBottom: '20px' }}>
                 <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '32px', color: '#16D98A' }}>{ethBalance.toFixed(6)}</div>
-                <div style={{ fontSize: '13px', color: '#7E7A8F', marginTop: '3px' }}>ETH · ${balanceUsd.toFixed(2)} USD</div>
+                <div style={{ fontSize: '13px', color: '#7E7A8F', marginTop: '3px' }}>ETH · £{balanceUsd.toFixed(2)} GBP</div>
               </div>
               <div style={{ padding: '14px 16px', borderRadius: '14px', background: 'rgba(255,181,92,0.07)', border: '1px solid rgba(255,181,92,0.2)', fontSize: '12.5px', color: '#C5C1D6', lineHeight: 1.6 }}>
                 <Icon name="info" size={15} color="#FFB55C" style={{ verticalAlign: 'middle', marginRight: '6px' }} />
@@ -672,7 +672,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {deposits.map(dep => {
                   const isPending = dep.status === 'pending_review';
-                  const amountUsd = dep.amount_cents ? (dep.amount_cents / 100).toFixed(2) : '—';
+                  const amountGbp = dep.amount_cents ? (dep.amount_cents / 100).toFixed(2) : '—';
                   const statusColor = isPending ? '#FFB55C' : dep.status === 'credited' ? '#16D98A' : '#8A8699';
                   const statusBg = isPending ? 'rgba(255,181,92,0.12)' : dep.status === 'credited' ? 'rgba(22,217,138,0.12)' : 'rgba(255,255,255,0.06)';
                   return (
@@ -682,7 +682,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>
-                          ${amountUsd} {(dep.currency ?? 'usd').toUpperCase()}
+                          £{amountGbp} {(dep.currency ?? 'gbp').toUpperCase()}
                         </div>
                         <div style={{ fontSize: '11.5px', color: '#6F6B82', marginTop: '2px' }}>
                           {fmtDate(dep.created_at)} · <code style={{ fontFamily: 'monospace', fontSize: '11px', color: '#4A4763' }}>{dep.stripe_event_id?.slice(0, 24)}…</code>
@@ -700,9 +700,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                                 ...prev,
                                 type: 'credit',
                                 amount_eth: '',
-                                reason: `Stripe deposit — $${amountUsd} (${dep.stripe_event_id})`,
-                                internal_note: `Crediting verified Stripe payment of $${amountUsd}. Event: ${dep.stripe_event_id}`,
-                                customer_note: `Your deposit of $${amountUsd} has been credited to your account.`,
+                                reason: `Stripe deposit — £${amountGbp} (${dep.stripe_event_id})`,
+                                internal_note: `Crediting verified Stripe payment of £${amountGbp}. Event: ${dep.stripe_event_id}`,
+                                customer_note: `Your deposit of £${amountGbp} has been credited to your account.`,
                               }));
                             }}
                             style={{ height: '34px', padding: '0 14px', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12.5px', background: 'rgba(22,217,138,0.14)', border: '1px solid rgba(22,217,138,0.3)', color: '#16D98A', whiteSpace: 'nowrap' }}
