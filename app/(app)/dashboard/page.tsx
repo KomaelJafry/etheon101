@@ -113,7 +113,7 @@ export default function DashboardPage() {
   ];
 
   const quickActions = [
-    { icon: 'add',          label: 'Deposit',  href: '/wallet' },
+    { icon: 'add',          label: 'Deposit',  href: '/deposit' },
     { icon: 'north_east',   label: 'Withdraw', href: '/withdrawals' },
     { icon: 'shopping_bag', label: 'Buy ETH',  href: '/wallet' },
     { icon: 'swap_vert',    label: 'Convert',  href: '/wallet' },

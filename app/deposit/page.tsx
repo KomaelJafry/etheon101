@@ -16,19 +16,28 @@ function EtheonLogo({ size = 20 }: { size?: number }) {
   );
 }
 
+const PRESETS = [20, 50, 100, 250, 500];
+
 export default function DepositPage() {
   return <AppProvider><DepositPageInner /></AppProvider>;
 }
 
 function DepositPageInner() {
   const { profile, ethPrice } = useApp();
-  const { get } = useContent(['wallet', 'mining']);
+  const { get } = useContent(['payment', 'wallet', 'mining']);
 
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [qrTarget, setQrTarget] = useState<string | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [contentLoading, setContentLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [pageOrigin] = useState(() => typeof window !== 'undefined' ? window.location.origin : '');
+
+  // Stripe custom-amount state
+  const [amountInput, setAmountInput] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createBrowserClient(
@@ -48,22 +57,57 @@ function DepositPageInner() {
         setQrTarget(m['deposit_qr_target'] ?? null);
         setQrImageUrl(m['deposit_qr_image_url'] ?? null);
       }
-      setLoading(false);
+      setContentLoading(false);
     })();
   }, []);
 
-  const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
-  const miningThreshold = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
-  const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
-  const isSubscribed = profile?.is_active ?? false;
-  const miningUnlocked = isSubscribed && balanceUsd >= miningThreshold;
-  const withdrawalUnlocked = balanceUsd >= withdrawThreshold;
+  function selectPreset(usd: number) {
+    setSelectedPreset(usd);
+    setAmountInput(String(usd));
+    setCheckoutError(null);
+  }
 
-  const copyTarget = depositAddress || qrTarget;
-  const qrValue = qrTarget || depositAddress;
-  const shortAddr = copyTarget && copyTarget.length > 16
+  function handleAmountChange(val: string) {
+    setAmountInput(val);
+    const n = parseFloat(val);
+    setSelectedPreset(PRESETS.includes(n) ? n : null);
+    setCheckoutError(null);
+  }
+
+  async function startCheckout() {
+    const amountUsd = parseFloat(amountInput);
+    if (!Number.isFinite(amountUsd) || amountUsd < 10 || amountUsd > 10000) {
+      setCheckoutError('Enter an amount between $10 and $10,000');
+      return;
+    }
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch('/api/stripe/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount_usd: amountUsd }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setCheckoutError(json.error ?? 'Could not start checkout. Please try again.');
+        setCheckoutLoading(false);
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setCheckoutError('Network error. Please check your connection and try again.');
+      setCheckoutLoading(false);
+    }
+  }
+
+  const copyTarget  = depositAddress || null;
+  const shortAddr   = copyTarget && copyTarget.length > 16
     ? `${copyTarget.slice(0, 8)}…${copyTarget.slice(-8)}`
     : copyTarget;
+
+  const depositPageUrl = pageOrigin ? `${pageOrigin}/deposit` : 'https://etheon.site/deposit';
+  const qrDisplayValue = qrTarget || depositPageUrl;
 
   function copyAddress() {
     if (!copyTarget) return;
@@ -73,14 +117,23 @@ function DepositPageInner() {
     }).catch(() => {});
   }
 
+  const balanceUsd        = (profile?.eth_balance ?? 0) * ethPrice;
+  const miningThreshold   = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
+  const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
+  const isSubscribed      = profile?.is_active ?? false;
+  const miningUnlocked    = isSubscribed && balanceUsd >= miningThreshold;
+  const withdrawalUnlocked = balanceUsd >= withdrawThreshold;
+
+  const pageTitle    = get('payment', 'payment_options_title',    'Add funds to your account');
+  const pageSubtitle = get('payment', 'payment_options_subtitle', 'Enter any amount and pay securely with Stripe. Your balance will be reviewed and credited by an admin.');
+
   return (
     <div style={{ minHeight: '100vh', background: '#0B0A14', color: '#F4F3FA', fontFamily: "'Manrope', system-ui, sans-serif" }}>
-      {/* Background glows */}
       <div style={{ position: 'fixed', top: '-200px', left: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle,rgba(124,92,255,0.25),transparent 65%)', filter: 'blur(40px)', pointerEvents: 'none', zIndex: 0 }} />
       <div style={{ position: 'fixed', bottom: '-100px', right: '5%', width: '400px', height: '400px', borderRadius: '50%', background: 'radial-gradient(circle,rgba(22,217,138,0.12),transparent 65%)', filter: 'blur(40px)', pointerEvents: 'none', zIndex: 0 }} />
 
       {/* Nav */}
-      <nav style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '960px', margin: '0 auto', padding: '22px 28px' }}>
+      <nav style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1000px', margin: '0 auto', padding: '22px 28px' }}>
         <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}>
           <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'linear-gradient(135deg,#9b7bff,#6e8bff)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EtheonLogo size={18} />
@@ -97,95 +150,161 @@ function DepositPageInner() {
         </div>
       </nav>
 
-      {/* Main */}
-      <main style={{ position: 'relative', zIndex: 1, maxWidth: '960px', margin: '0 auto', padding: '12px 28px 80px' }}>
+      <main style={{ position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto', padding: '12px 28px 80px' }}>
 
         {/* Header */}
-        <div style={{ marginBottom: '36px' }}>
-          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(28px,4vw,44px)', letterSpacing: '-0.03em' }}>Deposit to Etheon</h1>
-          <p style={{ margin: '10px 0 0', fontSize: '15px', color: '#8A8699', lineHeight: 1.55 }}>
-            Add funds to your Etheon balance to unlock rewards mining and build toward withdrawals.
-          </p>
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(26px,4vw,40px)', letterSpacing: '-0.03em' }}>{pageTitle}</h1>
+          <p style={{ margin: '10px 0 0', fontSize: '15px', color: '#8A8699', lineHeight: 1.55 }}>{pageSubtitle}</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '24px', alignItems: 'start' }}>
 
-          {/* Left: Deposit card */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* ── LEFT COLUMN ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
-            {/* QR / address card */}
+            {/* ── PRIMARY: Custom-amount Stripe checkout ── */}
             <div style={{ borderRadius: '26px', padding: '28px', background: 'linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '18px', marginBottom: '4px' }}>Deposit address</div>
-              <div style={{ fontSize: '13px', color: '#8A8699', marginBottom: '22px' }}>
-                {get('wallet', 'deposit_instructions', 'Send only Ethereum (ERC-20) to this address. Deposits are credited after network confirmation.')}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(124,92,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="credit_card" size={18} color="#9b7bff" />
+                </div>
+                <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '18px' }}>Secure Stripe payment</div>
+              </div>
+              <div style={{ fontSize: '13px', color: '#8A8699', marginBottom: '22px', lineHeight: 1.55 }}>
+                Payments are processed by Stripe. Your balance will be credited after admin review — typically 1–2 business days.
               </div>
 
-              {loading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '20px 0' }}>
-                  <div className="skeleton" style={{ width: '160px', height: '160px', borderRadius: '16px' }} />
-                  <div className="skeleton" style={{ height: '13px', width: '75%', borderRadius: '6px' }} />
+              {/* Quick-pick presets */}
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#7E7A8F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Quick select</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {PRESETS.map(usd => (
+                    <button
+                      key={usd}
+                      onClick={() => selectPreset(usd)}
+                      style={{
+                        height: '40px', padding: '0 16px', borderRadius: '12px', cursor: 'pointer',
+                        fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '14px',
+                        background: selectedPreset === usd ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${selectedPreset === usd ? 'rgba(124,92,255,0.5)' : 'rgba(255,255,255,0.09)'}`,
+                        color: selectedPreset === usd ? '#C9BBFF' : '#8A8699',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      ${usd}
+                    </button>
+                  ))}
                 </div>
-              ) : (qrValue || qrImageUrl) ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '18px' }}>
-                    <div style={{ width: '172px', height: '172px', borderRadius: '18px', background: '#fff', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      {qrImageUrl
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={qrImageUrl} alt="Deposit QR code" style={{ width: '144px', height: '144px', objectFit: 'contain' }} />
-                        : <QRCodeSVG value={qrValue!} size={144} bgColor="#ffffff" fgColor="#0B0A14" level="M" />
-                      }
-                    </div>
+              </div>
+
+              {/* Custom amount input */}
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#7E7A8F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Or enter any amount</div>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '18px', color: '#6F6B82', pointerEvents: 'none' }}>$</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="10000"
+                    step="1"
+                    value={amountInput}
+                    onChange={e => handleAmountChange(e.target.value)}
+                    placeholder="10 – 10,000"
+                    style={{
+                      width: '100%', padding: '14px 16px 14px 32px', borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.04)', border: `1px solid ${checkoutError ? 'rgba(255,107,138,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                      color: '#F4F3FA', fontFamily: "'Space Grotesk',sans-serif", fontSize: '18px', fontWeight: 700,
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                {checkoutError && (
+                  <div style={{ marginTop: '8px', fontSize: '12.5px', color: '#FF8DA3', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Icon name="error" size={14} color="#FF8DA3" />{checkoutError}
                   </div>
+                )}
+              </div>
 
-                  {copyTarget && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '13px 15px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '14px' }}>
-                      <Icon name="account_balance_wallet" size={18} color="#7E7A8F" style={{ flexShrink: 0 }} />
-                      <span className="sg" style={{ flex: 1, fontSize: '13px', color: '#C5C1D6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shortAddr}</span>
-                      <button onClick={copyAddress} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 12px', borderRadius: '10px', background: copied ? 'rgba(22,217,138,0.18)' : 'rgba(124,92,255,0.18)', border: 'none', cursor: 'pointer', fontSize: '12.5px', fontWeight: 700, color: copied ? '#16D98A' : '#C9BBFF' }}>
-                        <Icon name={copied ? 'check' : 'content_copy'} size={15} color={copied ? '#16D98A' : '#C9BBFF'} />
-                        {copied ? 'Copied' : 'Copy'}
-                      </button>
-                    </div>
-                  )}
+              {/* CTA button */}
+              <button
+                onClick={startCheckout}
+                disabled={checkoutLoading}
+                style={{
+                  width: '100%', height: '52px', borderRadius: '15px', cursor: checkoutLoading ? 'not-allowed' : 'pointer',
+                  background: checkoutLoading ? 'rgba(124,92,255,0.5)' : 'linear-gradient(135deg,#7C5CFF,#6e8bff)',
+                  border: 'none', color: '#fff', fontFamily: "'Manrope',sans-serif", fontWeight: 700, fontSize: '15px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  boxShadow: checkoutLoading ? 'none' : '0 6px 20px rgba(124,92,255,0.4)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {checkoutLoading
+                  ? <><Icon name="hourglass_empty" size={18} color="#fff" />Opening Stripe…</>
+                  : <><Icon name="lock" size={18} color="#fff" />Continue to payment{amountInput && parseFloat(amountInput) >= 10 ? ` — $${parseFloat(amountInput).toFixed(2)}` : ''}</>
+                }
+              </button>
 
+              {/* Notice */}
+              <div style={{ marginTop: '16px', padding: '12px 14px', borderRadius: '13px', background: 'rgba(124,92,255,0.08)', border: '1px solid rgba(124,92,255,0.16)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <Icon name="info" size={16} color="#9b7bff" style={{ flexShrink: 0, marginTop: '1px' }} />
+                <div style={{ fontSize: '12.5px', color: '#A39FB5', lineHeight: 1.55 }}>
+                  Your balance will only be updated after your payment is verified and reviewed by our team. You will not see an instant balance change.
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECONDARY: QR / Manual section ── */}
+            <div style={{ borderRadius: '26px', padding: '24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <Icon name="qr_code_2" size={18} color="#6F6B82" />
+                <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 600, fontSize: '14px', color: '#8A8699' }}>Scan to open deposit page</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+                <div style={{ width: '148px', height: '148px', borderRadius: '16px', background: '#fff', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {qrImageUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={qrImageUrl} alt="Scan to deposit" style={{ width: '128px', height: '128px', objectFit: 'contain' }} />
+                    : <QRCodeSVG value={qrDisplayValue} size={128} bgColor="#ffffff" fgColor="#0B0A14" level="M" />
+                  }
+                </div>
+              </div>
+              <div style={{ textAlign: 'center', fontSize: '12px', color: '#6F6B82', lineHeight: 1.5, marginBottom: contentLoading ? 0 : (copyTarget ? '14px' : 0) }}>
+                Scan to open this page on another device
+              </div>
+
+              {!contentLoading && copyTarget && (
+                <>
+                  <div style={{ margin: '14px 0 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+                    <span style={{ fontSize: '11px', color: '#4A4763', fontWeight: 600 }}>MANUAL TRANSFER</span>
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+                  </div>
+                  <div style={{ fontSize: '12.5px', color: '#6F6B82', lineHeight: 1.55, marginBottom: '10px' }}>
+                    {get('wallet', 'deposit_instructions', 'Manual payment instructions may be provided by support when available.')}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 13px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <Icon name="account_balance_wallet" size={16} color="#7E7A8F" style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '12px', color: '#C5C1D6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace' }}>{shortAddr}</span>
+                    <button onClick={copyAddress} style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 11px', borderRadius: '9px', background: copied ? 'rgba(22,217,138,0.15)' : 'rgba(124,92,255,0.15)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: copied ? '#16D98A' : '#C9BBFF' }}>
+                      <Icon name={copied ? 'check' : 'content_copy'} size={13} color={copied ? '#16D98A' : '#C9BBFF'} />
+                      {copied ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
                   {get('wallet', 'deposit_warning', '') && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 13px', borderRadius: '12px', background: 'rgba(255,181,92,0.08)', border: '1px solid rgba(255,181,92,0.2)', fontSize: '12.5px', color: '#FFB55C' }}>
-                      <Icon name="info" size={16} color="#FFB55C" style={{ flexShrink: 0, marginTop: '1px' }} />
-                      {get('wallet', 'deposit_warning', 'Send only Ethereum (ERC-20). Sending other assets may result in permanent loss.')}
+                    <div style={{ marginTop: '10px', display: 'flex', alignItems: 'flex-start', gap: '7px', padding: '9px 12px', borderRadius: '11px', background: 'rgba(255,181,92,0.07)', border: '1px solid rgba(255,181,92,0.18)', fontSize: '12px', color: '#FFB55C' }}>
+                      <Icon name="info" size={14} color="#FFB55C" style={{ flexShrink: 0, marginTop: '1px' }} />
+                      {get('wallet', 'deposit_warning', '')}
                     </div>
                   )}
                 </>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(124,92,255,0.12)', border: '1px solid rgba(124,92,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                    <Icon name="qr_code" size={28} color="#9b7bff" />
-                  </div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#C5C1D6', marginBottom: '8px' }}>Deposit instructions coming soon</div>
-                  <div style={{ fontSize: '13px', color: '#6F6B82', lineHeight: 1.55 }}>Our team is finalising deposit instructions. Check back soon or contact support.</div>
-                </div>
-              )}
-            </div>
-
-            {/* Manual instructions section — customise later */}
-            <div style={{ borderRadius: '26px', padding: '24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '12px' }}>
-                <Icon name="help_outline" size={20} color="#A39FB5" />
-                <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '15px' }}>How to deposit</span>
-              </div>
-              {/* ─── Replace the block below with your custom deposit instructions ─── */}
-              <div style={{ fontSize: '13.5px', color: '#8A8699', lineHeight: 1.65 }}>
-                {get('wallet', 'deposit_instructions', 'Scan the QR code above or copy the deposit address, then send Ethereum (ETH) from your external wallet or exchange. Deposits are credited to your Etheon balance after network confirmation.')}
-              </div>
-              {get('wallet', 'minimum_deposit_note', '') && (
-                <div style={{ marginTop: '12px', padding: '10px 13px', borderRadius: '12px', background: 'rgba(124,92,255,0.08)', border: '1px solid rgba(124,92,255,0.18)', fontSize: '12.5px', color: '#C9BBFF' }}>
-                  {get('wallet', 'minimum_deposit_note', '')}
-                </div>
               )}
             </div>
           </div>
 
-          {/* Right: Progress */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* ── RIGHT COLUMN — balance + progress ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
 
             {/* Balance snapshot */}
             <div style={{ borderRadius: '26px', padding: '22px 24px', background: 'linear-gradient(160deg,rgba(124,92,255,0.14),rgba(255,255,255,0.02))', border: '1px solid rgba(124,92,255,0.2)' }}>
@@ -204,8 +323,8 @@ function DepositPageInner() {
               body={`Reach $${miningThreshold} balance${!isSubscribed ? ' and subscribe' : ''} to activate your daily rewards session.`}
               currentUsd={balanceUsd}
               targetUsd={miningThreshold}
-              ctaLabel={!isSubscribed ? 'Subscribe to unlock' : miningUnlocked ? 'Go to mining' : 'Keep depositing'}
-              ctaHref={!isSubscribed ? '/api/stripe/checkout' : miningUnlocked ? '/mining' : '#deposit'}
+              ctaLabel={!isSubscribed ? 'Subscribe to unlock' : miningUnlocked ? 'Go to mining' : 'Keep adding funds'}
+              ctaHref={!isSubscribed ? '/api/stripe/checkout' : miningUnlocked ? '/mining' : '/deposit'}
               unlocked={miningUnlocked}
               unlockedLabel="Mining active"
             />
@@ -216,17 +335,17 @@ function DepositPageInner() {
               body={`Your rewards are accumulating. Withdrawals unlock at $${withdrawThreshold.toLocaleString()} total balance.`}
               currentUsd={balanceUsd}
               targetUsd={withdrawThreshold}
-              ctaLabel={withdrawalUnlocked ? 'Request withdrawal' : 'Continue depositing'}
-              ctaHref={withdrawalUnlocked ? '/withdrawals' : '#deposit'}
+              ctaLabel={withdrawalUnlocked ? 'Request withdrawal' : 'Continue adding funds'}
+              ctaHref={withdrawalUnlocked ? '/withdrawals' : '/deposit'}
               unlocked={withdrawalUnlocked}
               unlockedLabel="Withdrawals unlocked"
               accentColor="#16D98A"
             />
 
-            {/* Info notice */}
+            {/* Honesty notice */}
             <div style={{ padding: '16px 18px', borderRadius: '18px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', fontSize: '12.5px', color: '#6F6B82', lineHeight: 1.6 }}>
               <Icon name="verified_user" size={16} color="#A39FB5" style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
-              Deposits are manually reviewed and credited to your balance. Mining rewards are earned based on your plan and account balance. Rewards remain pending until withdrawal requirements are met.
+              Funds are reviewed and credited to your balance after payment confirmation. Mining rewards are based on your plan and balance. Rewards remain pending until withdrawal requirements are met.
             </div>
           </div>
         </div>

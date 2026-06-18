@@ -67,6 +67,19 @@ export async function POST(req: NextRequest) {
           await supabase.from('profiles').update({ stripe_customer_id: session.customer as string }).eq('id', userId)
           await supabase.from('payment_events').update({ user_id: userId }).eq('stripe_event_id', event.id)
         }
+      } else if (session.mode === 'payment' && session.metadata?.type === 'deposit') {
+        const userId = session.metadata?.user_id
+        if (userId) {
+          const { error: updateErr } = await supabase.from('payment_events').update({
+            user_id: userId,
+            amount_cents: session.amount_total ?? 0,
+            currency: session.currency ?? 'usd',
+            status: 'pending_review',
+          }).eq('stripe_event_id', event.id)
+          if (updateErr) {
+            console.error('[DEPOSIT WEBHOOK] Failed to mark deposit pending_review', updateErr, event.id)
+          }
+        }
       }
       break
     }

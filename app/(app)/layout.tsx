@@ -245,7 +245,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            <RippleButton variant="purple" onClick={() => router.push('/wallet')} style={{ display:'flex', alignItems:'center', gap:'6px', height:'40px', padding:'0 18px', borderRadius:'999px', fontSize:'13.5px', color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>
+            <RippleButton variant="purple" onClick={() => router.push('/deposit')} style={{ display:'flex', alignItems:'center', gap:'6px', height:'40px', padding:'0 18px', borderRadius:'999px', fontSize:'13.5px', color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>
               <Icon name="add" size={17} color="#fff" />
               Deposit
             </RippleButton>

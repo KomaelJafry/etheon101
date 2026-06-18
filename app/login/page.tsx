@@ -111,7 +111,7 @@ export default function LoginPage() {
           <div style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontWeight: 600, fontSize: 'clamp(26px,3.5vw,38px)', lineHeight: 1.1, letterSpacing: '-0.03em', maxWidth: '420px' }}>{get('auth', 'brand_panel_headline', 'The simplest way to mine Ethereum.')}</div>
           <p style={{ fontSize: '16px', color: '#A39FB5', lineHeight: 1.6, marginTop: '18px', maxWidth: '400px' }}>{get('auth', 'brand_panel_subtext', 'No rigs to buy, no power bills to pay. Allocate hashrate and watch your rewards climb in real time.')}</p>
           <div style={{ display: 'flex', gap: '30px', marginTop: '34px', flexWrap: 'wrap' }}>
-            {[['5M+', 'Active miners'], ['99.98%', 'Uptime'], ['$0', 'Setup fee']].map(([val, label]) => (
+            {[['99.98%', 'Uptime'], ['$0', 'Setup fee'], ['256-bit', 'Encryption']].map(([val, label]) => (
               <div key={label}>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '30px', background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{val}</div>
                 <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '3px' }}>{label}</div>

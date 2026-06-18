@@ -21,6 +21,7 @@ interface Check { id: string; key: string; label: string; status: 'pending' | 'c
 interface Note { id: string; note: string; created_by: string; created_at: string; }
 interface Message { id: string; title: string; body: string; type: string; is_read: boolean; is_visible: boolean; created_at: string; }
 interface Config { miningThreshold: number; withdrawalThreshold: number; }
+interface DepositEvent { id: string; stripe_event_id: string; type: string; amount_cents: number; currency: string; status: string; created_at: string; }
 
 // ── Helpers ──────────────────────────────────────────────
 function initials(name: string) {
@@ -117,11 +118,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [checks, setChecks] = useState<Check[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [deposits, setDeposits] = useState<DepositEvent[]>([]);
   const [config, setConfig] = useState<Config>({ miningThreshold: 100, withdrawalThreshold: 1000 });
   const [ethPrice, setEthPrice] = useState(3000);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'balance' | 'checks' | 'adjustments' | 'messages' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'balance' | 'checks' | 'adjustments' | 'messages' | 'notes' | 'deposits'>('overview');
 
   // Form state
   const [newNote, setNewNote] = useState('');
@@ -133,6 +135,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [msgSaving, setMsgSaving] = useState(false);
   const [checkEditing, setCheckEditing] = useState<string | null>(null);
   const [checkForm, setCheckForm] = useState<Partial<Check>>({});
+  const [depositUpdating, setDepositUpdating] = useState<string | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -141,6 +144,24 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
+  }
+
+  async function updateDepositStatus(depositId: string, status: 'credited' | 'rejected' | 'refunded') {
+    setDepositUpdating(depositId);
+    try {
+      const res = await fetch(`/api/admin/customers/${id}/deposits/${depositId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setDeposits(prev => prev.map(d => d.id === depositId ? { ...d, status } : d));
+      showToast(`Deposit marked as ${status}`, 'success');
+    } catch {
+      showToast('Failed to update deposit status', 'error');
+    } finally {
+      setDepositUpdating(null);
+    }
   }
 
   useEffect(() => {
@@ -157,6 +178,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       setChecks(json.checks ?? []);
       setNotes(json.notes ?? []);
       setMessages(json.messages ?? []);
+      setDeposits(json.deposits ?? []);
       setConfig(json.config ?? { miningThreshold: 100, withdrawalThreshold: 1000 });
       if (priceRes?.ok) {
         const priceJson = await priceRes.json();
@@ -302,11 +324,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     setCheckEditing(key);
   }
 
+  const pendingDeposits = deposits.filter(d => d.status === 'pending_review').length;
+
   const TABS = [
     { key: 'overview', icon: 'person', label: 'Overview' },
     { key: 'balance', icon: 'account_balance_wallet', label: 'Balance & Unlock' },
     { key: 'checks', icon: 'checklist', label: 'Verification' },
     { key: 'adjustments', icon: 'tune', label: 'Adjustments' },
+    { key: 'deposits', icon: 'payments', label: `Deposits${pendingDeposits > 0 ? ` (${pendingDeposits})` : ''}` },
     { key: 'messages', icon: 'mark_chat_read', label: 'Messages' },
     { key: 'notes', icon: 'sticky_note_2', label: 'Admin notes' },
   ] as const;
@@ -639,6 +664,86 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </Card>
           </div>
+        )}
+
+        {/* ── TAB: Deposits ─────────────────────────────────── */}
+        {activeTab === 'deposits' && (
+          <Card>
+            <SectionTitle icon="payments" title="Stripe deposit payments" subtitle="Payments via Stripe checkout that are pending admin review." />
+            {deposits.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#6F6B82', fontSize: '13px' }}>
+                <Icon name="payments" size={32} color="#3A374F" style={{ marginBottom: '8px' }} />
+                <div>No deposit payments recorded yet</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {deposits.map(dep => {
+                  const isPending = dep.status === 'pending_review';
+                  const amountUsd = dep.amount_cents ? (dep.amount_cents / 100).toFixed(2) : '—';
+                  const statusColor = isPending ? '#FFB55C' : dep.status === 'credited' ? '#16D98A' : '#8A8699';
+                  const statusBg = isPending ? 'rgba(255,181,92,0.12)' : dep.status === 'credited' ? 'rgba(22,217,138,0.12)' : 'rgba(255,255,255,0.06)';
+                  return (
+                    <div key={dep.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '15px', background: isPending ? 'rgba(255,181,92,0.05)' : 'rgba(255,255,255,0.025)', border: `1px solid ${isPending ? 'rgba(255,181,92,0.22)' : 'rgba(255,255,255,0.07)'}` }}>
+                      <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: isPending ? 'rgba(255,181,92,0.14)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Icon name="credit_card" size={20} color={isPending ? '#FFB55C' : '#6F6B82'} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>
+                          ${amountUsd} {(dep.currency ?? 'usd').toUpperCase()}
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: '#6F6B82', marginTop: '2px' }}>
+                          {fmtDate(dep.created_at)} · <code style={{ fontFamily: 'monospace', fontSize: '11px', color: '#4A4763' }}>{dep.stripe_event_id?.slice(0, 24)}…</code>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: statusColor, background: statusBg, padding: '4px 10px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+                        {isPending ? 'Pending review' : dep.status.replace(/_/g, ' ')}
+                      </span>
+                      {isPending && (
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            onClick={() => {
+                              setActiveTab('adjustments');
+                              setAdjForm(prev => ({
+                                ...prev,
+                                type: 'credit',
+                                amount_eth: '',
+                                reason: `Stripe deposit — $${amountUsd} (${dep.stripe_event_id})`,
+                                internal_note: `Crediting verified Stripe payment of $${amountUsd}. Event: ${dep.stripe_event_id}`,
+                                customer_note: `Your deposit of $${amountUsd} has been credited to your account.`,
+                              }));
+                            }}
+                            style={{ height: '34px', padding: '0 14px', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12.5px', background: 'rgba(22,217,138,0.14)', border: '1px solid rgba(22,217,138,0.3)', color: '#16D98A', whiteSpace: 'nowrap' }}
+                          >
+                            Credit balance
+                          </button>
+                          <button
+                            disabled={depositUpdating === dep.id}
+                            onClick={() => updateDepositStatus(dep.id, 'credited')}
+                            style={{ height: '34px', padding: '0 12px', borderRadius: '10px', cursor: depositUpdating === dep.id ? 'default' : 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12px', background: 'rgba(22,217,138,0.08)', border: '1px solid rgba(22,217,138,0.2)', color: '#16D98A', whiteSpace: 'nowrap', opacity: depositUpdating === dep.id ? 0.5 : 1 }}
+                            title="Mark this deposit as credited without going through Adjustments"
+                          >
+                            Mark credited
+                          </button>
+                          <button
+                            disabled={depositUpdating === dep.id}
+                            onClick={() => updateDepositStatus(dep.id, 'rejected')}
+                            style={{ height: '34px', padding: '0 12px', borderRadius: '10px', cursor: depositUpdating === dep.id ? 'default' : 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12px', background: 'rgba(255,107,138,0.08)', border: '1px solid rgba(255,107,138,0.2)', color: '#FF8DA3', whiteSpace: 'nowrap', opacity: depositUpdating === dep.id ? 0.5 : 1 }}
+                            title="Mark this deposit as rejected"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ marginTop: '18px', padding: '13px 15px', borderRadius: '13px', background: 'rgba(255,181,92,0.07)', border: '1px solid rgba(255,181,92,0.18)', fontSize: '12.5px', color: '#C5C1D6', lineHeight: 1.6 }}>
+              <Icon name="info" size={15} color="#FFB55C" style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+              Clicking &ldquo;Credit balance&rdquo; pre-fills the Adjustments tab with the deposit details. You still need to review and confirm the adjustment there.
+            </div>
+          </Card>
         )}
 
         {/* ── TAB: Messages ─────────────────────────────────── */}

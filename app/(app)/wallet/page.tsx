@@ -70,10 +70,10 @@ export default function WalletPage() {
     : depositAddress;
 
   const assets = [
-    { name: 'Ethereum', sym: 'ETH', bal: ethBalance.toFixed(6), val: `$${usdValue}`, chg: '+2.41%', chgColor: '#16D98A', iconBg: 'linear-gradient(135deg,#627EEA,#4A6CF7)', icon: 'diamond' },
-    { name: 'Tether USD', sym: 'USDT', bal: '0.00', val: '$0.00', chg: '+0.01%', chgColor: '#16D98A', iconBg: 'linear-gradient(135deg,#1a9e7a,#26c79b)', icon: 'attach_money' },
-    { name: 'USD Coin', sym: 'USDC', bal: '0.00', val: '$0.00', chg: '0.00%', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#2775CA,#4A9EF7)', icon: 'paid' },
-    { name: 'Wrapped BTC', sym: 'WBTC', bal: '0.00000000', val: '$0.00', chg: '+1.12%', chgColor: '#16D98A', iconBg: 'linear-gradient(135deg,#F7931A,#FFB347)', icon: 'currency_bitcoin' },
+    { name: 'Ethereum', sym: 'ETH', bal: ethBalance.toFixed(6), val: `$${usdValue}`, chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#627EEA,#4A6CF7)', icon: 'diamond' },
+    { name: 'Tether USD', sym: 'USDT', bal: '0.00', val: '$0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#1a9e7a,#26c79b)', icon: 'attach_money' },
+    { name: 'USD Coin', sym: 'USDC', bal: '0.00', val: '$0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#2775CA,#4A9EF7)', icon: 'paid' },
+    { name: 'Wrapped BTC', sym: 'WBTC', bal: '0.00000000', val: '$0.00', chg: '—', chgColor: '#8A8699', iconBg: 'linear-gradient(135deg,#F7931A,#FFB347)', icon: 'currency_bitcoin' },
   ];
 
   return (
@@ -95,6 +95,9 @@ export default function WalletPage() {
               <RippleButton variant="purple" onClick={() => depositRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13.5px', color: '#fff', boxShadow: '0 8px 20px rgba(124,92,255,0.4)' }}>
                 <Icon name="add" size={18} color="#fff" />Deposit
               </RippleButton>
+              <a href="/deposit" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '42px', padding: '0 16px', borderRadius: '999px', fontSize: '13px', fontWeight: 700, color: '#C9BBFF', background: 'rgba(124,92,255,0.1)', border: '1px solid rgba(124,92,255,0.22)', textDecoration: 'none' }}>
+                <Icon name="credit_card" size={16} color="#C9BBFF" />Add with card
+              </a>
               <RippleButton variant="ghost" onClick={() => convertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '42px', padding: '0 18px', borderRadius: '999px', fontSize: '13.5px', color: '#C9BBFF', background: 'rgba(124,92,255,0.14)', borderColor: 'rgba(124,92,255,0.25)' }}>
                 <Icon name="swap_vert" size={18} color="#C9BBFF" />Convert
               </RippleButton>

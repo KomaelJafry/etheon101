@@ -90,14 +90,6 @@ export default function LandingPage() {
                 </RippleButton>
               </Link>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '30px' }}>
-              <div style={{ display: 'flex' }}>
-                {['linear-gradient(135deg,#7c5cff,#6e8bff)', 'linear-gradient(135deg,#6e8bff,#16d98a)', 'linear-gradient(135deg,#9b7bff,#ff6b8a)'].map((bg, i) => (
-                  <div key={i} style={{ width: '34px', height: '34px', borderRadius: '50%', background: bg, border: '2px solid #0B0A14', marginLeft: i > 0 ? '-10px' : '0' }} />
-                ))}
-              </div>
-              <span style={{ fontSize: '13.5px', color: '#8A8699' }}><span style={{ color: '#E9E7F2', fontWeight: 700 }}>5M+ miners</span> earning on Etheon</span>
-            </div>
           </div>
 
           {/* Hero card */}
@@ -134,7 +126,7 @@ export default function LandingPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '16px', background: 'rgba(124,92,255,0.12)', border: '1px solid rgba(124,92,255,0.22)', marginTop: '8px' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#A39FB5', fontWeight: 600 }}>Earned today</div>
+                  <div style={{ fontSize: '11px', color: '#A39FB5', fontWeight: 600 }}>Example earnings</div>
                   <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: '20px', color: '#16D98A', marginTop: '2px' }}>{sessionEthStr}</div>
                 </div>
                 <span style={{ fontSize: '12px', color: '#8A8699' }}>ETH · {sessionUsd}</span>
@@ -143,19 +135,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* PRESS STRIP */}
-        <section style={{ maxWidth: '1180px', margin: '0 auto', padding: '30px 32px', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap', opacity: 0.55 }}>
-            {[['CHAINWIRE', 700, false], ['BlockLedger', 700, false], ['The Tokenist', 700, true], ['MINERREPORT', 700, false], ['Decryptor', 700, false]].map(([name, weight, italic]) => (
-              <span key={name as string} style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: weight as number, fontSize: '19px', color: '#C5C1D6', fontStyle: italic ? 'italic' : undefined }}>{name}</span>
-            ))}
-          </div>
-        </section>
-
         {/* STATS */}
         <section id="stats" style={{ maxWidth: '1180px', margin: '0 auto', padding: '56px 32px' }}>
           <div className="resp-grid-stats">
-            {[[get('landing','stat_miners','5M+'), 'Registered miners'], ['15M+', 'TH/s deployed'], ['$0', 'Hardware cost'], [get('landing','stat_uptime','99.98%'), 'Network uptime']].map(([val, label]) => (
+            {[['$0', 'Hardware cost'], ['24/7', 'Automated mining'], ['Real-time', 'Reward tracking'], ['Ethereum', 'Mainnet powered']].map(([val, label]) => (
               <div key={label as string} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(28px,3.5vw,42px)', letterSpacing: '-0.02em', background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{val}</div>
                 <div style={{ fontSize: '14px', color: '#8A8699', marginTop: '6px' }}>{label}</div>
@@ -197,7 +180,7 @@ export default function LandingPage() {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '30px', flexWrap: 'wrap' }}>
               <div>
                 <h2 style={{ margin: 0, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(26px,3.5vw,40px)', letterSpacing: '-0.03em', color: '#fff' }}>Start mining in minutes.</h2>
-                <p style={{ fontSize: '17px', color: '#A39FB5', marginTop: '14px', maxWidth: '440px' }}>Join millions earning Ethereum the simple way. No hardware, no hassle.</p>
+                <p style={{ fontSize: '17px', color: '#A39FB5', marginTop: '14px', maxWidth: '440px' }}>No hardware, no noise, no electricity bills. Etheon handles the rigs — you keep the rewards.</p>
               </div>
               <Link href="/login?tab=signup" style={{ textDecoration: 'none', flexShrink: 0 }}>
                 <RippleButton variant="purple" style={{ display: 'flex', alignItems: 'center', gap: '9px', height: '56px', padding: '0 32px', borderRadius: '999px', fontSize: '16px', fontWeight: 700, color: '#fff', boxShadow: '0 12px 30px rgba(124,92,255,0.5)' }}>

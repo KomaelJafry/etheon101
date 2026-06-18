@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = await createServiceClient()
 
-  const [profileRes, checksRes, notesRes, msgsRes, threshRes] = await Promise.all([
+  const [profileRes, checksRes, notesRes, msgsRes, threshRes, depositsRes] = await Promise.all([
     supabase
       .from('profiles')
       .select(`
@@ -38,6 +38,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .from('ui_content')
       .select('element_key, value')
       .in('element_key', ['mining_minimum_start_balance_usd', 'withdrawal_unlock_balance_usd']),
+    supabase
+      .from('payment_events')
+      .select('id, stripe_event_id, type, amount_cents, currency, status, created_at')
+      .eq('user_id', id)
+      .order('created_at', { ascending: false })
+      .limit(30),
   ])
 
   if (profileRes.error) return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -52,6 +58,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     checks: checksRes.data ?? [],
     notes: notesRes.data ?? [],
     messages: msgsRes.data ?? [],
+    deposits: depositsRes.data ?? [],
     config: {
       miningThreshold: thresholds['mining_minimum_start_balance_usd'] ?? 100,
       withdrawalThreshold: thresholds['withdrawal_unlock_balance_usd'] ?? 1000,
