@@ -7,6 +7,9 @@ interface UnlockProgressCardProps {
   targetUsd: number;
   ctaLabel: string;
   ctaHref: string;
+  onCtaClick?: () => void;
+  ctaLoading?: boolean;
+  ctaError?: string | null;
   unlocked?: boolean;
   unlockedLabel?: string;
   accentColor?: string;
@@ -19,6 +22,9 @@ export default function UnlockProgressCard({
   targetUsd,
   ctaLabel,
   ctaHref,
+  onCtaClick,
+  ctaLoading = false,
+  ctaError = null,
   unlocked = false,
   unlockedLabel = 'Unlocked',
   accentColor = '#7C5CFF',
@@ -83,22 +89,52 @@ export default function UnlockProgressCard({
       )}
 
       {/* CTA */}
-      <a href={ctaHref} style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: '100%', padding: '11px', borderRadius: '13px',
-        fontSize: '13px', fontWeight: 700,
-        color: unlocked ? '#0B0A14' : '#E9E7F2',
-        background: unlocked ? accentColor : `rgba(${accentRgb},0.18)`,
-        border: `1px solid rgba(${accentRgb},0.3)`,
-        textDecoration: 'none',
-        boxShadow: unlocked ? `0 6px 18px rgba(${accentRgb},0.35)` : 'none',
-        transition: 'opacity 0.15s',
-      }}
-        onMouseOver={e => (e.currentTarget.style.opacity = '0.88')}
-        onMouseOut={e => (e.currentTarget.style.opacity = '1')}
-      >
-        {ctaLabel}
-      </a>
+      {onCtaClick ? (
+        <>
+          <button
+            onClick={onCtaClick}
+            disabled={ctaLoading}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '100%', padding: '11px', borderRadius: '13px',
+              fontSize: '13px', fontWeight: 700,
+              color: unlocked ? '#0B0A14' : '#E9E7F2',
+              background: unlocked ? accentColor : `rgba(${accentRgb},0.18)`,
+              border: `1px solid rgba(${accentRgb},0.3)`,
+              cursor: ctaLoading ? 'not-allowed' : 'pointer',
+              opacity: ctaLoading ? 0.75 : 1,
+              boxShadow: unlocked ? `0 6px 18px rgba(${accentRgb},0.35)` : 'none',
+              transition: 'opacity 0.15s',
+            }}
+            onMouseOver={e => { if (!ctaLoading) e.currentTarget.style.opacity = '0.88'; }}
+            onMouseOut={e => (e.currentTarget.style.opacity = ctaLoading ? '0.75' : '1')}
+          >
+            {ctaLoading ? 'Redirecting to checkout…' : ctaLabel}
+          </button>
+          {ctaError && (
+            <div style={{ marginTop: '8px', padding: '9px 11px', borderRadius: '10px', background: 'rgba(255,107,138,0.1)', border: '1px solid rgba(255,107,138,0.25)', fontSize: '12px', color: '#FF6B8A' }}>
+              {ctaError}
+            </div>
+          )}
+        </>
+      ) : (
+        <a href={ctaHref} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: '100%', padding: '11px', borderRadius: '13px',
+          fontSize: '13px', fontWeight: 700,
+          color: unlocked ? '#0B0A14' : '#E9E7F2',
+          background: unlocked ? accentColor : `rgba(${accentRgb},0.18)`,
+          border: `1px solid rgba(${accentRgb},0.3)`,
+          textDecoration: 'none',
+          boxShadow: unlocked ? `0 6px 18px rgba(${accentRgb},0.35)` : 'none',
+          transition: 'opacity 0.15s',
+        }}
+          onMouseOver={e => (e.currentTarget.style.opacity = '0.88')}
+          onMouseOut={e => (e.currentTarget.style.opacity = '1')}
+        >
+          {ctaLabel}
+        </a>
+      )}
     </div>
   );
 }

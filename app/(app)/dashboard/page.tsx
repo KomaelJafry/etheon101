@@ -10,6 +10,19 @@ import { useContent } from '../../../hooks/useContent';
 
 type Period = '30D' | '90D' | 'All';
 
+async function startSubscribeCheckout(): Promise<{ url: string }> {
+  const res = await fetch('/api/stripe/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ billing_period: 'monthly' }),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 interface Txn {
   id: string; type: string; amount_eth: number;
   status: string; description: string; created_at: string;
@@ -53,6 +66,8 @@ function SkeletonCard({ h = 80 }: { h?: number }) {
 export default function DashboardPage() {
   const { profile, ethPrice, loading: appLoading } = useApp();
   const { get } = useContent(['mining']);
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
   const [txns, setTxns]       = useState<Txn[]>([]);
   const [txLoading, setTxLoading] = useState(true);
   const [liveEth, setLiveEth] = useState(0);
@@ -118,6 +133,21 @@ export default function DashboardPage() {
     { icon: 'shopping_bag', label: 'Buy ETH',  href: '/wallet' },
     { icon: 'swap_vert',    label: 'Convert',  href: '/wallet' },
   ];
+
+  async function handleSubscribe() {
+    if (!profile) { window.location.href = '/login'; return; }
+    setSubLoading(true);
+    setSubError(null);
+    try {
+      const { url } = await startSubscribeCheckout();
+      if (url) window.location.href = url;
+      else setSubError('No checkout URL returned. Please try again.');
+    } catch (err) {
+      setSubError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubLoading(false);
+    }
+  }
 
   function addRipple(e: React.MouseEvent, el: HTMLElement) {
     const rect = el.getBoundingClientRect();
@@ -338,7 +368,10 @@ export default function DashboardPage() {
           currentUsd={balanceUsd}
           targetUsd={miningThreshold}
           ctaLabel={!isSubscribed ? 'Subscribe to unlock' : get('mining','mining_unlock_cta_label','Add funds to unlock')}
-          ctaHref={!isSubscribed ? '/api/stripe/checkout' : depositHref}
+          ctaHref={!isSubscribed ? '#' : depositHref}
+          onCtaClick={!isSubscribed ? handleSubscribe : undefined}
+          ctaLoading={!isSubscribed ? subLoading : undefined}
+          ctaError={!isSubscribed ? subError : undefined}
           unlocked={miningUnlocked}
           unlockedLabel={get('mining','mining_ready_text','Mining active')}
         />

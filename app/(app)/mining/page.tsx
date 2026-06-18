@@ -10,6 +10,19 @@ import { useContent } from '../../../hooks/useContent';
 const ETH_RATE = 0.000000032;
 const fmt = (n: number, d = 6) => n.toFixed(d);
 
+async function startSubscribeCheckout(): Promise<{ url: string }> {
+  const res = await fetch('/api/stripe/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ billing_period: 'monthly' }),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error((json as { error?: string }).error ?? `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 const PRESETS = [
   { label: 'Eco',      pct: 0.25, desc: 'Low power · quiet' },
   { label: 'Balanced', pct: 0.50, desc: 'Optimal efficiency' },
@@ -19,6 +32,23 @@ const PRESETS = [
 export default function MiningPage() {
   const { profile, ethPrice } = useApp();
   const { get } = useContent(['mining']);
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
+
+  async function handleSubscribe() {
+    if (!profile) { window.location.href = '/login'; return; }
+    setSubLoading(true);
+    setSubError(null);
+    try {
+      const { url } = await startSubscribeCheckout();
+      if (url) window.location.href = url;
+      else setSubError('No checkout URL returned. Please try again.');
+    } catch (err) {
+      setSubError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSubLoading(false);
+    }
+  }
   const cap = profile?.hashrate_capacity_th || 500;
 
   const miningThreshold = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
@@ -143,9 +173,17 @@ export default function MiningPage() {
                 <div style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, marginBottom:'14px' }}>
                   {get('mining','mining_locked_subscription_text','An active plan is required to start rewards mining. Subscribe to unlock your daily session.')}
                 </div>
-                <a href="/api/stripe/checkout" style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'12px', borderRadius:'13px', background:'#7C5CFF', color:'#fff', fontWeight:700, fontSize:'13.5px', textDecoration:'none', boxShadow:'0 6px 18px rgba(124,92,255,0.4)' }}>
-                  Subscribe to unlock mining
-                </a>
+                <button
+                  onClick={handleSubscribe}
+                  disabled={subLoading}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'center', width:'100%', padding:'12px', borderRadius:'13px', background:'#7C5CFF', color:'#fff', fontWeight:700, fontSize:'13.5px', border:'none', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.75:1, boxShadow:'0 6px 18px rgba(124,92,255,0.4)', transition:'opacity 0.15s' }}>
+                  {subLoading ? 'Redirecting to checkout…' : 'Subscribe to unlock mining'}
+                </button>
+                {subError && (
+                  <div style={{ marginTop:'10px', padding:'10px 12px', borderRadius:'10px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.25)', fontSize:'12.5px', color:'#FF6B8A' }}>
+                    {subError}
+                  </div>
+                )}
               </>
             ) : (
               <>
