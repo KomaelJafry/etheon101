@@ -164,42 +164,78 @@ export default function MiningPage() {
 
         {/* Eligibility gate */}
         {!isEligible && (
-          <div style={{ borderRadius:'22px', padding:'20px 22px', background:'linear-gradient(160deg,rgba(255,107,138,0.1),rgba(255,255,255,0.02))', border:'1px solid rgba(255,107,138,0.25)' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
+          <div style={{ borderRadius:'22px', padding:'24px', background:'linear-gradient(160deg,rgba(124,92,255,0.1),rgba(255,255,255,0.02))', border:'1px solid rgba(124,92,255,0.25)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' }}>
               <Icon name="lock" size={20} color="#FF6B8A" />
-              <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'15px', color:'#FF6B8A' }}>Rewards mining locked</span>
+              <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'15px', color:'#FF6B8A' }}>Rewards Mining Locked</span>
             </div>
+            <p style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, margin:'0 0 18px' }}>
+              {!isSubscribed
+                ? get('mining','mining_locked_subscription_text','An active subscription is required to participate in Etheon Rewards Mining.')
+                : get('mining','mining_locked_balance_text',`Deposit at least £${miningThreshold} to meet the balance requirement.`)}
+            </p>
+
             {!isSubscribed ? (
               <>
-                <div style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, marginBottom:'14px' }}>
-                  {get('mining','mining_locked_subscription_text','An active plan is required to start rewards mining. Subscribe to unlock your daily session.')}
+                {/* What you unlock */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px', marginBottom:'16px' }}>
+                  {['Enable mining sessions','Participate in reward cycles','Track account progress','Unlock milestones'].map(f => (
+                    <div key={f} style={{ display:'flex', alignItems:'center', gap:'7px', padding:'9px 11px', borderRadius:'11px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
+                      <Icon name="check_circle" size={15} color="#16D98A" />
+                      <span style={{ fontSize:'12px', color:'#C5C1D6', fontWeight:600 }}>{f}</span>
+                    </div>
+                  ))}
                 </div>
-                <button
-                  onClick={handleSubscribe}
-                  disabled={subLoading}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'center', width:'100%', padding:'12px', borderRadius:'13px', background:'#7C5CFF', color:'#fff', fontWeight:700, fontSize:'13.5px', border:'none', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.75:1, boxShadow:'0 6px 18px rgba(124,92,255,0.4)', transition:'opacity 0.15s' }}>
-                  {subLoading ? 'Redirecting to checkout…' : 'Subscribe to unlock mining'}
-                </button>
+
+                {/* Plan comparison mini-card */}
+                <div style={{ borderRadius:'15px', overflow:'hidden', border:'1px solid rgba(255,255,255,0.07)', marginBottom:'16px' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', background:'rgba(255,255,255,0.03)' }}>
+                    {[
+                      { name:'Essential', price:'£19.99/mo', color:'#A39FB5', accent:'rgba(255,255,255,0.06)', border:'rgba(255,255,255,0.08)' },
+                      { name:'Pro',       price:'£49.99/mo', color:'#C9BBFF', accent:'rgba(124,92,255,0.12)', border:'rgba(124,92,255,0.25)' },
+                    ].map(plan => (
+                      <div key={plan.name} style={{ padding:'14px', background:plan.accent, borderLeft:`1px solid ${plan.border}` }}>
+                        <div style={{ fontWeight:700, fontSize:'13px', color:plan.color, marginBottom:'2px' }}>{plan.name}</div>
+                        <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'16px', marginBottom:'8px' }}>{plan.price}</div>
+                        {['Mining access','Progress tracking'].concat(plan.name==='Pro'?['Higher limits','Priority support']:[]).map(f => (
+                          <div key={f} style={{ display:'flex', alignItems:'center', gap:'5px', marginBottom:'4px' }}>
+                            <Icon name="check" size={13} color={plan.name==='Pro'?'#9B7BFF':'#16D98A'} />
+                            <span style={{ fontSize:'11.5px', color:'#A39FB5' }}>{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
+                  <button onClick={handleSubscribe} disabled={subLoading}
+                    style={{ padding:'12px', borderRadius:'12px', background:'rgba(124,92,255,0.18)', border:'1px solid rgba(124,92,255,0.35)', color:'#C9BBFF', fontWeight:700, fontSize:'13px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1 }}>
+                    {subLoading ? 'Redirecting…' : 'Activate Essential'}
+                  </button>
+                  <button onClick={handleSubscribe} disabled={subLoading}
+                    style={{ padding:'12px', borderRadius:'12px', background:'#7C5CFF', border:'none', color:'#fff', fontWeight:700, fontSize:'13px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1, boxShadow:'0 6px 18px rgba(124,92,255,0.4)' }}>
+                    {subLoading ? 'Redirecting…' : 'Upgrade to Pro'}
+                  </button>
+                </div>
                 {subError && (
                   <div style={{ marginTop:'10px', padding:'10px 12px', borderRadius:'10px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.25)', fontSize:'12.5px', color:'#FF6B8A' }}>
                     {subError}
                   </div>
                 )}
+                <div style={{ marginTop:'10px', textAlign:'center' }}>
+                  <a href="/pricing" style={{ fontSize:'12px', color:'#6F6B82', textDecoration:'none', fontWeight:600 }}>Compare all plan features →</a>
+                </div>
               </>
             ) : (
-              <>
-                <div style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, marginBottom:'10px' }}>
-                  {get('mining','mining_locked_balance_text',`Deposit at least £${miningThreshold} to activate rewards mining.`)}
-                </div>
-                <UnlockProgressCard
-                  title="Deposit to unlock mining"
-                  body={`Reach £${miningThreshold} balance to start earning daily rewards.`}
-                  currentUsd={balanceUsd}
-                  targetUsd={miningThreshold}
-                  ctaLabel="Add funds"
-                  ctaHref={depositHref}
-                />
-              </>
+              <UnlockProgressCard
+                title="Deposit to unlock mining"
+                body={`Reach £${miningThreshold} balance to activate your first rewards session.`}
+                currentUsd={balanceUsd}
+                targetUsd={miningThreshold}
+                ctaLabel="Add funds"
+                ctaHref={depositHref}
+              />
             )}
           </div>
         )}

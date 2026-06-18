@@ -298,6 +298,38 @@ export default function DashboardPage() {
       {/* RIGHT */}
       <div style={{ display:'flex', flexDirection:'column', gap:'18px', minWidth:0 }}>
 
+        {/* Subscription conversion panel — shown only for unsubscribed users */}
+        {!isSubscribed && (
+          <div className="anim-slide-up" style={{ borderRadius:'24px', padding:'24px', background:'linear-gradient(160deg,rgba(124,92,255,0.14),rgba(11,10,20,0.5))', border:'1px solid rgba(124,92,255,0.28)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' }}>
+              <Icon name="lock" size={18} color="#FF6B8A" />
+              <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'14px', color:'#FF6B8A' }}>Rewards Mining Locked</span>
+            </div>
+            <p style={{ fontSize:'13px', color:'#8A8699', lineHeight:1.55, margin:'0 0 18px' }}>
+              An active subscription is required to participate in Etheon Rewards Mining. Activate a plan to unlock mining sessions and reward cycles.
+            </p>
+            <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:'13px', padding:'14px', marginBottom:'16px', border:'1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize:'11px', fontWeight:700, color:'#6F6B82', letterSpacing:'0.05em', marginBottom:'10px' }}>WHAT YOU UNLOCK</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:'7px' }}>
+                {[['bolt','Mining session activation'],['loop','Daily reward cycles'],['trending_up','Progress tracking'],['analytics','Account analytics']].map(([icon, label]) => (
+                  <div key={label} style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                    <Icon name={icon} size={15} color="#9B7BFF" />
+                    <span style={{ fontSize:'13px', color:'#C5C1D6' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button onClick={handleSubscribe} disabled={subLoading}
+              style={{ width:'100%', padding:'13px', borderRadius:'13px', background:'#7C5CFF', border:'none', color:'#fff', fontWeight:700, fontSize:'14px', cursor:subLoading?'not-allowed':'pointer', opacity:subLoading?0.7:1, boxShadow:'0 8px 22px rgba(124,92,255,0.42)', marginBottom:'8px' }}>
+              {subLoading ? 'Redirecting to checkout…' : 'Activate subscription'}
+            </button>
+            {subError && <div style={{ padding:'10px 12px', borderRadius:'10px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.25)', fontSize:'12.5px', color:'#FF6B8A', marginBottom:'8px' }}>{subError}</div>}
+            <div style={{ textAlign:'center' }}>
+              <a href="/pricing" style={{ fontSize:'12.5px', color:'#6F6B82', fontWeight:600, textDecoration:'none' }}>Compare plans →</a>
+            </div>
+          </div>
+        )}
+
         {/* Mining status */}
         <div className="anim-slide-up" style={{ position:'relative', overflow:'hidden', borderRadius:'24px', padding:'22px', background:'linear-gradient(170deg,rgba(124,92,255,0.12),rgba(11,10,20,0.5))', border:'1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' }}>
@@ -375,6 +407,27 @@ export default function DashboardPage() {
           unlocked={miningUnlocked}
           unlockedLabel={get('mining','mining_ready_text','Mining active')}
         />
+
+        {/* Estimated rewards preview — shown to unsubscribed users */}
+        {!isSubscribed && (
+          <div style={{ borderRadius:'20px', padding:'20px 22px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
+              <Icon name="info" size={16} color="#FFB55C" />
+              <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'14px' }}>Reward Examples</span>
+            </div>
+            <p style={{ fontSize:'12px', color:'#6F6B82', lineHeight:1.55, margin:'0 0 14px' }}>
+              Illustrative examples only. Actual rewards depend on account status, activity, platform rules, and eligibility requirements. Not guaranteed.
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+              {[['Daily','£20 – £50'],['Weekly','£140 – £350'],['Monthly','£600 – £1,500']].map(([label, range]) => (
+                <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 13px', borderRadius:'11px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ fontSize:'13px', color:'#A39FB5', fontWeight:600 }}>{label} example</span>
+                  <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:'14px', color:'#C9BBFF' }}>{range}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Withdrawal unlock progress */}
         <UnlockProgressCard

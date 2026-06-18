@@ -64,6 +64,7 @@ export default function LoginPage() {
     const urlError = params.get('error');
     if (urlError === 'auth_failed') setErr('Sign-in could not be completed. Please use email to continue.');
     else if (urlError === 'admin_required') setErr('Admin access required. Please sign in with an admin account.');
+    if (params.get('confirmed') === 'true') setForgotMsg('Email confirmed! You can now log in.');
 
     // Restore any persisted cooldown from a previous attempt
     const signupUntil = parseInt(localStorage.getItem(SIGNUP_COOLDOWN_KEY) ?? '0', 10);
@@ -96,21 +97,30 @@ export default function LoginPage() {
     } else {
       // Apply signup cooldown immediately to prevent double-submit
       applyCooldown(SIGNUP_COOLDOWN_SECS, SIGNUP_COOLDOWN_KEY);
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+      const { data, error } = await supabase.auth.signUp({
+        email, password,
+        options: {
+          data: { full_name: name },
+          emailRedirectTo: `${window.location.origin}/login?confirmed=true`,
+        },
+      });
       if (error) {
         const { message, retryAfterSeconds } = normalizeAuthError(error.message);
         setErr(message);
-        // Override cooldown duration if Supabase specified a longer wait
         if (retryAfterSeconds && retryAfterSeconds > SIGNUP_COOLDOWN_SECS) {
           applyCooldown(retryAfterSeconds, SIGNUP_COOLDOWN_KEY);
         }
         setLoading(false);
         return;
       }
-      if (data.user) {
-        await supabase.from('profiles').upsert({ id: data.user.id, full_name: name, email });
+      if (data.user && !data.session) {
+        // Email confirmation required — profile created by DB trigger; ask user to verify
+        setForgotMsg('Account created! Check your inbox and confirm your email before logging in.');
+        setTab('login');
+      } else if (data.user && data.session) {
+        // Email confirmation disabled — signed in immediately
         router.push('/dashboard');
-        router.refresh(); // flush RSC cache so middleware sees the new session cookie
+        router.refresh();
       }
     }
     setLoading(false);
