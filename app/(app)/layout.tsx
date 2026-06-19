@@ -229,22 +229,28 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       <main className="app-main">
         <header className="app-topbar">
+          {/* Always visible: hamburger */}
           <RippleButton variant="ghost" className="sidebar-toggle-btn" onClick={() => setSidebarOpen(o => !o)} style={{ padding:0 }}>
             <Icon name="menu" size={22} color="#C5C1D6" />
           </RippleButton>
 
-          <div style={{ flexShrink:0, minWidth:0, flex:'0 1 auto' }}>
+          {/* Title block — on mobile becomes flex:1 to push notif to far right */}
+          <div className="topbar-title-block" style={{ flexShrink:0, minWidth:0, flex:'0 1 auto' }}>
             <h1 className="sg" style={{ margin:0, fontWeight:700, fontSize:'21px', letterSpacing:'-0.025em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{meta.title}</h1>
-            <div style={{ fontSize:'12.5px', color:'#6F6B82', marginTop:'2px' }}>{meta.sub}</div>
+            {/* Hidden on mobile — subtitle moves to topbar-row2 instead */}
+            <div className="topbar-sub" style={{ fontSize:'12.5px', color:'#6F6B82', marginTop:'2px' }}>{meta.sub}</div>
           </div>
 
-          <div style={{ display:'flex', alignItems:'center', gap:'9px', flex:1, justifyContent:'flex-end', minWidth:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'8px', height:'40px', padding:'0 14px', borderRadius:'999px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', color:'#6F6B82', fontSize:'13px', maxWidth:'220px', flex:'1 1 auto', overflow:'hidden', cursor:'text', minWidth:0 }}>
+          {/* Right-side controls — on mobile shrinks to just the notification bell */}
+          <div className="topbar-actions" style={{ display:'flex', alignItems:'center', gap:'9px', flex:1, justifyContent:'flex-end', minWidth:0 }}>
+            {/* Hidden on mobile */}
+            <div className="topbar-search" style={{ display:'flex', alignItems:'center', gap:'8px', height:'40px', padding:'0 14px', borderRadius:'999px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', color:'#6F6B82', fontSize:'13px', maxWidth:'220px', flex:'1 1 auto', overflow:'hidden', cursor:'text', minWidth:0 }}>
               <Icon name="search" size={17} color="#6F6B82" style={{ flexShrink:0 }} />
               <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>Search…</span>
             </div>
 
-            <div style={{ display:'flex', alignItems:'center', gap:'8px', height:'40px', padding:'0 14px', borderRadius:'999px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', flexShrink:0 }}>
+            {/* Hidden on mobile */}
+            <div className="topbar-ticker" style={{ display:'flex', alignItems:'center', gap:'8px', height:'40px', padding:'0 14px', borderRadius:'999px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', flexShrink:0 }}>
               <div style={{ width:'20px', height:'20px', borderRadius:'50%', background:'linear-gradient(135deg,#5b7fff,#9b7bff)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <Icon name="verified_user" size={12} color="#fff" />
               </div>
@@ -252,6 +258,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               <span style={{ fontSize:'12px', fontWeight:700, color:'#16D98A' }}>+2.4%</span>
             </div>
 
+            {/* Always visible: notification bell */}
             <div style={{ position:'relative' }}>
               <RippleButton variant="ghost" onClick={() => setNotifOpen(o => !o)} style={{ width:'40px', height:'40px', borderRadius:'999px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, padding:0 }}>
                 <Icon name="notifications" size={20} color="#C5C1D6" />
@@ -271,6 +278,16 @@ function Shell({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
+            {/* Deposit — desktop only; mobile version lives in topbar-row2 */}
+            <RippleButton variant="purple" className="topbar-deposit-desktop" onClick={() => router.push('/deposit')} style={{ display:'flex', alignItems:'center', gap:'6px', height:'40px', padding:'0 18px', borderRadius:'999px', fontSize:'13.5px', color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>
+              <Icon name="add" size={17} color="#fff" />
+              Deposit
+            </RippleButton>
+          </div>
+
+          {/* Row 2 — mobile only (CSS shows it below row 1 at <640px) */}
+          <div className="topbar-row2">
+            <span style={{ fontSize:'12.5px', color:'#6F6B82' }}>{meta.sub}</span>
             <RippleButton variant="purple" onClick={() => router.push('/deposit')} style={{ display:'flex', alignItems:'center', gap:'6px', height:'40px', padding:'0 18px', borderRadius:'999px', fontSize:'13.5px', color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>
               <Icon name="add" size={17} color="#fff" />
               Deposit
