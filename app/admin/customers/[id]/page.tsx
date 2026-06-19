@@ -205,6 +205,35 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     })();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load owner-controls data when that tab is opened
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (activeTab !== 'owner-controls') return;
+    setOwnerLoading(true);
+    fetch(`/api/admin/customers/${id}/owner-controls`)
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if (!j?.profile) return;
+        const p = j.profile as Record<string, unknown>;
+        setOwnerCtrl(p);
+        setAccCtrl({
+          account_status: (p.account_status as string) ?? 'active',
+          admin_mining_override: (p.admin_mining_override as string) ?? '',
+          admin_withdrawal_override: (p.admin_withdrawal_override as string) ?? '',
+          reason: '',
+        });
+        setSubCtrl(s => ({
+          ...s,
+          override: Boolean(p.admin_subscription_override),
+          status: (p.admin_subscription_status as string) ?? 'active',
+          plan: (p.admin_subscription_plan as string) ?? 'Manual',
+          interval: (p.admin_subscription_interval as string) ?? 'manual',
+        }));
+      })
+      .finally(() => setOwnerLoading(false));
+  }, [activeTab, id]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   if (accessDenied) return (
     <div style={{ minHeight: '100vh', background: '#0B0A14', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px', fontFamily: "'Manrope',sans-serif" }}>
       <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'rgba(255,107,138,0.12)', border: '1px solid rgba(255,107,138,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -996,7 +1025,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           </Card>
         )}
 
-      </div>
 
         {/* ── TAB: Owner Controls ───────────────────────────── */}
         {activeTab === 'owner-controls' && (() => {
@@ -1034,8 +1062,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               body: JSON.stringify({ action: 'subscription', override: subCtrl.override, status: subCtrl.override ? subCtrl.status : null, plan: subCtrl.override ? subCtrl.plan : null, interval: subCtrl.override ? subCtrl.interval : null, reason: subCtrl.reason }),
             });
             const json = await res.json();
-            if (res.ok) { showToast(subCtrl.override ? 'Subscription override granted' : 'Subscription override revoked', 'success'); setSubCtrl(s => ({ ...s, reason: '' })); setOwnerCtrl(prev => prev ? { ...prev, admin_subscription_override: subCtrl.override, admin_subscription_status: subCtrl.override ? subCtrl.status : null, admin_subscription_plan: subCtrl.override ? subCtrl.plan : null } : prev); }
-            else { showToast(json.error ?? 'Subscription override failed', 'error'); }
+            if (res.ok) {
+              showToast(subCtrl.override ? 'Subscription override granted' : 'Subscription override revoked', 'success');
+              setSubCtrl(s => ({ ...s, reason: '' }));
+              const updRes = await fetch(`/api/admin/customers/${id}/owner-controls`);
+              if (updRes.ok) { const j = await updRes.json(); setOwnerCtrl(j.profile); }
+            } else { showToast(json.error ?? 'Subscription override failed', 'error'); }
             setSubSaving(false);
           }
 
@@ -1047,8 +1079,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               body: JSON.stringify({ action: 'access', account_status: accCtrl.account_status, admin_mining_override: accCtrl.admin_mining_override || null, admin_withdrawal_override: accCtrl.admin_withdrawal_override || null, reason: accCtrl.reason }),
             });
             const json = await res.json();
-            if (res.ok) { showToast('Access overrides saved', 'success'); setAccCtrl(s => ({ ...s, reason: '' })); setOwnerCtrl(prev => prev ? { ...prev, account_status: accCtrl.account_status, admin_mining_override: accCtrl.admin_mining_override || null, admin_withdrawal_override: accCtrl.admin_withdrawal_override || null } : prev); }
-            else { showToast(json.error ?? 'Access override failed', 'error'); }
+            if (res.ok) {
+              showToast('Access overrides saved', 'success');
+              setAccCtrl(s => ({ ...s, reason: '' }));
+              const updRes = await fetch(`/api/admin/customers/${id}/owner-controls`);
+              if (updRes.ok) { const j = await updRes.json(); setOwnerCtrl(j.profile); }
+            } else { showToast(json.error ?? 'Access override failed', 'error'); }
             setAccSaving(false);
           }
 
@@ -1254,6 +1290,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             </div>
           );
         })()}
+
+      </div>
 
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
