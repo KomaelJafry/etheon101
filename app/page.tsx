@@ -131,7 +131,7 @@ export default function LandingPage() {
         {/* STATS */}
         <section id="stats" style={{ maxWidth: '1180px', margin: '0 auto', padding: '56px 32px' }}>
           <div className="resp-grid-stats">
-            {[['$0', 'Hardware cost'], ['24/7', 'Automated mining'], ['Real-time', 'Reward tracking'], ['Ethereum', 'Mainnet powered']].map(([val, label]) => (
+            {[['£0', 'Hardware cost'], ['24/7', 'Automated mining'], ['Real-time', 'Reward tracking'], ['Ethereum', 'Mainnet powered']].map(([val, label]) => (
               <div key={label as string} style={{ textAlign: 'center' }}>
                 <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 'clamp(28px,3.5vw,42px)', letterSpacing: '-0.02em', background: 'linear-gradient(120deg,#b39bff,#6e8bff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{val}</div>
                 <div style={{ fontSize: '14px', color: '#8A8699', marginTop: '6px' }}>{label}</div>

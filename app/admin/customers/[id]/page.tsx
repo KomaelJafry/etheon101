@@ -108,6 +108,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const router = useRouter();
 
+  useEffect(() => { document.title = 'Customer Detail | Etheon Admin'; }, []);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -507,7 +509,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             <Card>
               <SectionTitle icon="bolt" title="Mining unlock" />
               <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: '#8A8699' }}>Progress to ${config.miningThreshold}</span>
+                <span style={{ fontSize: '13px', color: '#8A8699' }}>Progress to £{config.miningThreshold}</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: miningLocked ? '#FFB55C' : '#16D98A' }}>{miningPct.toFixed(0)}%</span>
               </div>
               <ProgressBar pct={miningPct} color={miningLocked ? '#FFB55C' : '#16D98A'} />
@@ -523,7 +525,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             <Card>
               <SectionTitle icon="north_east" title="Withdrawal unlock" />
               <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: '#8A8699' }}>Progress to ${config.withdrawalThreshold.toLocaleString()}</span>
+                <span style={{ fontSize: '13px', color: '#8A8699' }}>Progress to £{config.withdrawalThreshold.toLocaleString()}</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: withdrawalLocked ? '#FF6B8A' : '#16D98A' }}>{withdrawalPct.toFixed(0)}%</span>
               </div>
               <ProgressBar pct={withdrawalPct} color={withdrawalLocked ? '#FF6B8A' : '#16D98A'} />

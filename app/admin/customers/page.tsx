@@ -85,6 +85,7 @@ function AccessDenied() {
 
 // ── Main page ────────────────────────────────────────────
 export default function CustomersPage() {
+  useEffect(() => { document.title = 'Customers | Etheon Admin'; }, []);
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [config, setConfig] = useState<Config>({ miningThreshold: 100, withdrawalThreshold: 1000 });
@@ -304,7 +305,7 @@ export default function CustomersPage() {
 
         {!loading && (
           <div style={{ marginTop: '12px', fontSize: '12px', color: '#4A4763', textAlign: 'right' }}>
-            Showing {filtered.length} of {customers.length} customers · ETH price ${ethPrice.toLocaleString()}
+            Showing {filtered.length} of {customers.length} customers · ETH indicative rate: £{ethPrice.toLocaleString()} (CoinGecko USD proxy)
           </div>
         )}
       </div>

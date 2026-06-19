@@ -108,11 +108,11 @@ const FIELD_GROUPS: { page: string; label: string; icon: string; fields: { key: 
   {
     page: 'payment', label: 'Stripe Payment Links', icon: 'credit_card',
     fields: [
-      { key: 'payment_link_20',  label: '$20 payment link',  desc: 'Stripe Payment Link for the $20 amount. Must start with https://buy.stripe.com/ or https://checkout.stripe.com/.', isLink: true },
-      { key: 'payment_link_50',  label: '$50 payment link',  desc: 'Stripe Payment Link for the $50 amount.', isLink: true },
-      { key: 'payment_link_100', label: '$100 payment link', desc: 'Stripe Payment Link for the $100 amount.', isLink: true },
-      { key: 'payment_link_250', label: '$250 payment link', desc: 'Stripe Payment Link for the $250 amount.', isLink: true },
-      { key: 'payment_link_500', label: '$500 payment link', desc: 'Stripe Payment Link for the $500 amount.', isLink: true },
+      { key: 'payment_link_20',  label: '£20 payment link',  desc: 'Stripe Payment Link for the £20 amount. Must start with https://buy.stripe.com/ or https://checkout.stripe.com/.', isLink: true },
+      { key: 'payment_link_50',  label: '£50 payment link',  desc: 'Stripe Payment Link for the £50 amount.', isLink: true },
+      { key: 'payment_link_100', label: '£100 payment link', desc: 'Stripe Payment Link for the £100 amount.', isLink: true },
+      { key: 'payment_link_250', label: '£250 payment link', desc: 'Stripe Payment Link for the £250 amount.', isLink: true },
+      { key: 'payment_link_500', label: '£500 payment link', desc: 'Stripe Payment Link for the £500 amount.', isLink: true },
       { key: 'payment_options_title',    label: 'Payment page title',    desc: 'Headline shown on the /deposit page. Default: "Add funds to your account".' },
       { key: 'payment_options_subtitle', label: 'Payment page subtitle', desc: 'Subheading under the title on /deposit.', multiline: true },
       { key: 'payment_options_notice',   label: 'Payment notice',        desc: 'Notice shown inside the card section, above amount tiles.', multiline: true },
@@ -138,6 +138,8 @@ export default function AdminContentPage() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  useEffect(() => { document.title = 'Content Editor | Etheon Admin'; }, []);
 
   useEffect(() => {
     async function load() {
