@@ -58,11 +58,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // not synchronously within this effect body.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProfile();
+
+    // Refresh profile every 20 seconds so admin changes reflect without logout
+    const pollId = setInterval(fetchProfile, 20000);
+
+    // Also refresh immediately when user returns to tab
+    const onFocus = () => fetchProfile();
+    window.addEventListener('focus', onFocus);
+
     // ETH price jitter — functional updater form is safe inside interval
-    const id = setInterval(() => {
+    const priceId = setInterval(() => {
       setEthPrice(p => Math.max(3200, Math.min(3400, p + (Math.random() - 0.5) * 1.4)));
     }, 120);
-    return () => clearInterval(id);
+
+    return () => {
+      clearInterval(pollId);
+      clearInterval(priceId);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- fetchProfile is stable, intentional empty deps
 
   return (
