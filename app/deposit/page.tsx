@@ -60,6 +60,8 @@ function DepositPageInner() {
     }
   }
 
+  useEffect(() => { document.title = 'Deposit Funds | Etheon'; }, []);
+
   useEffect(() => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

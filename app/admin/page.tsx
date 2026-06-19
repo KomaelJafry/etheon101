@@ -63,6 +63,8 @@ export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => { document.title = 'Admin | Etheon'; }, []);
   const [accessDenied, setAccessDenied] = useState(false);
   const [search, setSearch] = useState('');
   const [editUser, setEditUser] = useState<UserRow | null>(null);

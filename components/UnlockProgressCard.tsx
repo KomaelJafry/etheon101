@@ -34,8 +34,8 @@ export default function UnlockProgressCard({
 
   const fmtUsd = (n: number) =>
     n >= 1000
-      ? `$${(n / 1000).toFixed(1)}k`
-      : `$${n.toFixed(2)}`;
+      ? `£${(n / 1000).toFixed(1)}k`
+      : `£${n.toFixed(2)}`;
 
   const accentRgb = accentColor === '#16D98A' ? '22,217,138' : '124,92,255';
 

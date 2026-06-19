@@ -248,7 +248,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               <div style={{ width:'20px', height:'20px', borderRadius:'50%', background:'linear-gradient(135deg,#5b7fff,#9b7bff)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <Icon name="verified_user" size={12} color="#fff" />
               </div>
-              <span className="sg" style={{ fontWeight:700, fontSize:'13px' }}>${ethPrice.toFixed(2)}</span>
+              <span className="sg" style={{ fontWeight:700, fontSize:'13px' }}>£{ethPrice.toFixed(2)}</span>
               <span style={{ fontSize:'12px', fontWeight:700, color:'#16D98A' }}>+2.4%</span>
             </div>
 

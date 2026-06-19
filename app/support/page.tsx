@@ -1,4 +1,5 @@
 ﻿'use client';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { EtheonCrystal } from '@/components/EtheonBrand';
 
@@ -10,6 +11,7 @@ const s = {
 };
 
 export default function SupportPage() {
+  useEffect(() => { document.title = 'Support | Etheon'; }, []);
   return (
     <div style={{ minHeight: '100vh', background: '#0B0A14', color: '#F4F3FA', fontFamily: "'Manrope', system-ui, sans-serif", display: 'flex', flexDirection: 'column' }}>
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '900px', margin: '0 auto', padding: '22px 32px', width: '100%' }}>
