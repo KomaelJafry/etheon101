@@ -491,9 +491,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             {/* Risk Score Card */}
             {(() => {
               const sub0 = (profile.subscriptions ?? []).find((s: Subscription) => s.status === 'active' || s.status === 'trialing');
-              const depCount = deposits.length;
               const creditedDeps = deposits.filter(d => d.status === 'credited').length;
               const hasTx = (profile.transactions ?? []).length > 0;
+              // eslint-disable-next-line react-hooks/purity
               const accountAgeDays = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000);
               const checksComplete = checks.filter(c => c.status === 'complete').length;
               const totalChecks = checks.length || DEFAULT_CHECKS.length;
@@ -1003,7 +1003,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           const fmtGbp = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
           const fmtEth = (n: number) => `${n.toFixed(8)} ETH`;
           const currentEth = profile?.eth_balance ?? 0;
-          const currentGbp = (ownerCtrl as any)?.gbp_balance ?? 0;
+          const currentGbp = (ownerCtrl?.gbp_balance as number) ?? 0;
 
           async function saveBalance() {
             const amt = parseFloat(balCtrl.amount);
@@ -1182,9 +1182,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   {subSaving ? 'Saving…' : subCtrl.override ? 'Grant Subscription Access' : 'Revoke Subscription Override'}
                 </button>
 
-                {ownerCtrl && (ownerCtrl as any).admin_subscription_override && (
+                {ownerCtrl && Boolean(ownerCtrl.admin_subscription_override) && (
                   <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(22,217,138,0.06)', border: '1px solid rgba(22,217,138,0.2)', fontSize: '12.5px', color: '#16D98A' }}>
-                    ✓ Override active — {(ownerCtrl as any).admin_subscription_status} · {(ownerCtrl as any).admin_subscription_plan}
+                    ✓ Override active — {ownerCtrl.admin_subscription_status as string} · {ownerCtrl.admin_subscription_plan as string}
                   </div>
                 )}
               </Card>
@@ -1238,9 +1238,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 {ownerCtrl && (
                   <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
                     {[
-                      { label: 'Account status', val: (ownerCtrl as any).account_status ?? 'active' },
-                      { label: 'Mining override', val: (ownerCtrl as any).admin_mining_override ?? 'none (normal rules)' },
-                      { label: 'Withdrawal override', val: (ownerCtrl as any).admin_withdrawal_override ?? 'none (normal rules)' },
+                      { label: 'Account status', val: (ownerCtrl.account_status as string) ?? 'active' },
+                      { label: 'Mining override', val: (ownerCtrl.admin_mining_override as string) ?? 'none (normal rules)' },
+                      { label: 'Withdrawal override', val: (ownerCtrl.admin_withdrawal_override as string) ?? 'none (normal rules)' },
                     ].map(({ label, val }) => (
                       <div key={label} style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                         <div style={{ fontSize: '11px', color: '#7E7A8F', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>

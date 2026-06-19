@@ -89,6 +89,7 @@ export default function AdminAuditPage() {
     setLoading(false);
   }, [page, search]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   function exportCsv() {

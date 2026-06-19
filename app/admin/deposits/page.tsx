@@ -229,7 +229,6 @@ function ReviewDrawer({ deposit, onClose, onAction }: {
 export default function AdminDepositsPage() {
   const router = useRouter();
   const [deposits, setDeposits]     = useState<Deposit[]>([]);
-  const [total, setTotal]           = useState(0);
   const [loading, setLoading]       = useState(true);
   const [activeStatus, setActiveStatus] = useState('pending_review');
   const [search, setSearch]         = useState('');
@@ -259,11 +258,11 @@ export default function AdminDepositsPage() {
     if (res.ok) {
       const json = await res.json();
       setDeposits(json.deposits ?? []);
-      setTotal(json.total ?? 0);
     }
     setLoading(false);
   }, [activeStatus, search]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   async function handleAction(depositId: string, status: 'credited' | 'rejected' | 'refunded') {

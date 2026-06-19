@@ -215,6 +215,7 @@ export default function AdminWithdrawalsPage() {
     setLoading(false);
   }, [activeStatus, search]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   async function handleAction(id: string, status: 'completed' | 'failed', note: string) {

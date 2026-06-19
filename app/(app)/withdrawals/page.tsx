@@ -21,7 +21,15 @@ export default function WithdrawalsPage() {
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
   const balanceUsd = available * ethPrice;
-  const withdrawalLocked = balanceUsd < withdrawThreshold;
+
+  // Admin withdrawal override takes precedence over normal threshold rules
+  const withdrawOverride = profile?.admin_withdrawal_override ?? null;
+  const withdrawalUnderReview = withdrawOverride === 'under_review';
+  const withdrawalLocked =
+    withdrawOverride === 'locked'    ? true  :
+    withdrawOverride === 'unlocked'  ? false :
+    withdrawalUnderReview            ? true  :
+    balanceUsd < withdrawThreshold;
 
   const [amount, setAmount] = useState('0.25');
   const [network, setNetwork] = useState('ERC-20');
@@ -37,7 +45,7 @@ export default function WithdrawalsPage() {
   const fee = NETWORK_FEE;
   const receive = Math.max(0, amt - fee);
   const threshPct = Math.min(100, (available / MIN_WITHDRAWAL) * 100);
-  const btnActive = !withdrawalLocked && amt > fee && amt <= available && !!walletAddress;
+  const btnActive = !withdrawalLocked && !withdrawalUnderReview && amt > fee && amt <= available && !!walletAddress;
 
   async function handleSubmit() {
     if (!btnActive) return;
@@ -62,8 +70,29 @@ export default function WithdrawalsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1140px' }}>
 
-      {/* Withdrawal lock notice */}
-      {withdrawalLocked && (
+      {/* Admin withdrawal override banners */}
+      {withdrawalUnderReview && (
+        <div style={{ padding: '14px 18px', borderRadius: '16px', background: 'rgba(255,181,92,0.08)', border: '1px solid rgba(255,181,92,0.3)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <Icon name="hourglass_empty" size={20} color="#FFB55C" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: '#FFB55C', marginBottom: '3px' }}>Withdrawal access is under review</div>
+            <div style={{ fontSize: '13px', color: '#C5A55C', lineHeight: 1.5 }}>Your withdrawal access is currently under review. Please contact support if you have any questions.</div>
+          </div>
+        </div>
+      )}
+
+      {withdrawOverride === 'locked' && (
+        <div style={{ padding: '14px 18px', borderRadius: '16px', background: 'rgba(255,107,138,0.08)', border: '1px solid rgba(255,107,138,0.3)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <Icon name="lock" size={20} color="#FF6B8A" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: '#FF6B8A', marginBottom: '3px' }}>Withdrawals are locked</div>
+            <div style={{ fontSize: '13px', color: '#C5768A', lineHeight: 1.5 }}>Your withdrawal access has been restricted. Please contact support for assistance.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal lock notice (threshold-based, only shown when no override) */}
+      {withdrawalLocked && !withdrawOverride && (
         <UnlockProgressCard
           title={get('mining','withdrawal_unlock_title','Withdrawals unlock at £1,000')}
           body={get('mining','withdrawal_unlock_body',`Build your balance to £${withdrawThreshold.toLocaleString()} to unlock ETH withdrawals. Your rewards are safely accumulating.`)}

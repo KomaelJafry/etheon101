@@ -29,12 +29,24 @@ export async function GET(req: NextRequest) {
 
   if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 })
 
-  let rows = (data ?? []) as any[]
+  interface DepositRow {
+    id: string
+    stripe_event_id: string
+    type: string
+    amount_cents: number
+    currency: string
+    status: string
+    created_at: string
+    user_id: string
+    profiles: { id: string; full_name: string; email: string; eth_balance: number; is_active: boolean } | null
+  }
+
+  let rows = (data ?? []) as unknown as DepositRow[]
 
   if (search) {
     const s = search.toLowerCase()
     rows = rows.filter(r => {
-      const p = r.profiles as any
+      const p = r.profiles
       return (
         (p?.email      ?? '').toLowerCase().includes(s) ||
         (p?.full_name  ?? '').toLowerCase().includes(s) ||

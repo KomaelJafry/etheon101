@@ -31,12 +31,18 @@ export async function GET(req: NextRequest) {
 
   if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 })
 
-  let rows = (data ?? []) as any[]
+  interface WithdrawalRow {
+    id: string; type: string; amount_eth: number; amount_usd: number | null
+    status: string; description: string | null; created_at: string; user_id: string
+    profiles: { id: string; full_name: string; email: string; eth_balance: number; is_active: boolean; eth_wallet_address: string | null } | null
+  }
+
+  let rows = (data ?? []) as unknown as WithdrawalRow[]
 
   if (search) {
     const s = search.toLowerCase()
     rows = rows.filter(r => {
-      const p = r.profiles as any
+      const p = r.profiles
       return (
         (p?.email     ?? '').toLowerCase().includes(s) ||
         (p?.full_name ?? '').toLowerCase().includes(s) ||

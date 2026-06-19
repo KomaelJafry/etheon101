@@ -33,13 +33,15 @@ export async function GET() {
       .limit(200),
   ])
 
-  const active    = (activeRes.data    ?? []) as any[]
-  const cancelled = (cancelledRes.data ?? []) as any[]
-  const all       = (allRes.data       ?? []) as any[]
+  interface SubRow { id: string; status: string; billing_period: string | null; stripe_price_id?: string; created_at?: string; canceled_at?: string | null }
+
+  const active    = (activeRes.data    ?? []) as SubRow[]
+  const cancelled = (cancelledRes.data ?? []) as SubRow[]
+  const all       = (allRes.data       ?? []) as SubRow[]
 
   // Deduce plan from billing_period (we don't store plan name, only price_id)
   // Use billing_period: 'annual' → annual, else use MRR mapping
-  function planFromRow(r: any): string {
+  function planFromRow(r: SubRow): string {
     if (r.billing_period === 'annual') return 'annual'
     // Heuristic: if we had a price_id we'd map it; for now treat monthly subs as 'growth'
     return 'growth'
@@ -60,7 +62,7 @@ export async function GET() {
     const label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
     const start = d.toISOString()
     const end   = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString()
-    const newSubs = all.filter(r => r.created_at >= start && r.created_at < end).length
+    const newSubs = all.filter(r => (r.created_at ?? '') >= start && (r.created_at ?? '') < end).length
     monthly.push({ month: label, new_subs: newSubs })
   }
 

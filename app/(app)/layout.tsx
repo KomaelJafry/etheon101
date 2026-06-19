@@ -296,6 +296,24 @@ function Shell({ children }: { children: React.ReactNode }) {
         </header>
 
         <div className="app-content">
+          {profile?.account_status === 'suspended' && (
+            <div style={{ marginBottom: '16px', padding: '13px 18px', borderRadius: '14px', background: 'rgba(255,107,138,0.1)', border: '1px solid rgba(255,107,138,0.35)', display: 'flex', alignItems: 'center', gap: '11px', fontSize: '13.5px', color: '#FF6B8A', fontWeight: 600 }}>
+              <Icon name="block" size={19} color="#FF6B8A" style={{ flexShrink: 0 }} />
+              Your account is currently suspended. Please contact support.
+            </div>
+          )}
+          {profile?.account_status === 'restricted' && (
+            <div style={{ marginBottom: '16px', padding: '13px 18px', borderRadius: '14px', background: 'rgba(255,181,92,0.08)', border: '1px solid rgba(255,181,92,0.32)', display: 'flex', alignItems: 'center', gap: '11px', fontSize: '13.5px', color: '#FFB55C', fontWeight: 600 }}>
+              <Icon name="warning" size={19} color="#FFB55C" style={{ flexShrink: 0 }} />
+              Some account features are restricted. Please contact support for more information.
+            </div>
+          )}
+          {profile?.account_status === 'under_review' && (
+            <div style={{ marginBottom: '16px', padding: '13px 18px', borderRadius: '14px', background: 'rgba(110,139,255,0.08)', border: '1px solid rgba(110,139,255,0.28)', display: 'flex', alignItems: 'center', gap: '11px', fontSize: '13.5px', color: '#9BB5FF', fontWeight: 600 }}>
+              <Icon name="hourglass_empty" size={19} color="#9BB5FF" style={{ flexShrink: 0 }} />
+              Your account is under review. Some features may be limited.
+            </div>
+          )}
           {children}
         </div>
       </main>
