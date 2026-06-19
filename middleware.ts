@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Single source of truth for admin email — must match lib/auth-helpers.ts
+const OWNER_ADMIN_EMAIL = 'secondabenjamin.2000@gmail.com'
+
 // Exact matches (e.g. '/' must not catch '/dashboard')
 const PUBLIC_EXACT = new Set(['/', '/pricing'])
 // Prefix matches — any path starting with these is public
@@ -46,11 +49,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Protect /admin routes — only admins
+  // Protect /admin routes — email check is mandatory, no DB lookup required
   if (pathname.startsWith('/admin')) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/login?error=admin_required', request.url))
+    const email = (user.email ?? '').toLowerCase()
+    if (email !== OWNER_ADMIN_EMAIL) {
+      // Authenticated non-owner → send to dashboard, not login
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 

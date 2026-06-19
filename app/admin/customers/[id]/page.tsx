@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../../../components/Icon';
 import RippleButton from '../../../../components/RippleButton';
 import { EtheonCrystal } from '../../../../components/EtheonBrand';
+import { OWNER_ADMIN_EMAIL } from '@/lib/admin-config';
 
 // ── Types ────────────────────────────────────────────────
 interface Profile {
@@ -129,6 +130,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [checkEditing, setCheckEditing] = useState<string | null>(null);
   const [checkForm, setCheckForm] = useState<Partial<Check>>({});
   const [depositUpdating, setDepositUpdating] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -161,6 +163,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
+      if ((user.email ?? '').toLowerCase() !== OWNER_ADMIN_EMAIL) {
+        setAccessDenied(true); setLoading(false); return;
+      }
       const [custRes, priceRes] = await Promise.all([
         fetch(`/api/admin/customers/${id}`),
         fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd').catch(() => null),
@@ -180,6 +185,19 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       setLoading(false);
     })();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (accessDenied) return (
+    <div style={{ minHeight: '100vh', background: '#0B0A14', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px', fontFamily: "'Manrope',sans-serif" }}>
+      <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'rgba(255,107,138,0.12)', border: '1px solid rgba(255,107,138,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="lock" size={28} color="#FF6B8A" />
+      </div>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '22px', color: '#F5F4FF' }}>Access denied</div>
+      <div style={{ fontSize: '13.5px', color: '#7D789E' }}>This area is restricted to the platform owner only.</div>
+      <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '11px 22px', borderRadius: '12px', background: 'rgba(155,123,255,0.14)', border: '1px solid rgba(155,123,255,0.3)', color: '#C9BBFF', fontWeight: 700, fontSize: '13.5px', textDecoration: 'none' }}>
+        <Icon name="arrow_back" size={16} color="#C9BBFF" />Back to dashboard
+      </Link>
+    </div>
+  );
 
   const ethBalance = profile?.eth_balance ?? 0;
   const balanceUsd = ethBalance * ethPrice;

@@ -1,10 +1,12 @@
 ﻿'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
 import { EtheonCrystal } from '@/components/EtheonBrand';
+import { OWNER_ADMIN_EMAIL } from '@/lib/admin-config';
 
 // ── Types ────────────────────────────────────────────────
 interface Customer {
@@ -66,12 +68,28 @@ function SkeletonRow() {
 const COLS = '2.2fr 1.1fr 1fr 1fr 1fr 1fr 1fr 80px';
 
 
+function AccessDenied() {
+  return (
+    <div style={{ minHeight: '100vh', background: '#0B0A14', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px', fontFamily: "'Manrope',sans-serif" }}>
+      <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'rgba(255,107,138,0.12)', border: '1px solid rgba(255,107,138,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="lock" size={28} color="#FF6B8A" />
+      </div>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '22px', color: '#F5F4FF' }}>Access denied</div>
+      <div style={{ fontSize: '13.5px', color: '#7D789E', textAlign: 'center', maxWidth: '300px', lineHeight: 1.6 }}>This area is restricted to the platform owner only.</div>
+      <Link href="/dashboard" style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '11px 22px', borderRadius: '12px', background: 'rgba(155,123,255,0.14)', border: '1px solid rgba(155,123,255,0.3)', color: '#C9BBFF', fontWeight: 700, fontSize: '13.5px', textDecoration: 'none' }}>
+        <Icon name="arrow_back" size={16} color="#C9BBFF" />Back to dashboard
+      </Link>
+    </div>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────
 export default function CustomersPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [config, setConfig] = useState<Config>({ miningThreshold: 100, withdrawalThreshold: 1000 });
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [ethPrice, setEthPrice] = useState(3000);
@@ -85,11 +103,14 @@ export default function CustomersPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
+      if ((user.email ?? '').toLowerCase() !== OWNER_ADMIN_EMAIL) {
+        setAccessDenied(true); setLoading(false); return;
+      }
       const [custRes, priceRes] = await Promise.all([
         fetch('/api/admin/customers?limit=200'),
         fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd').catch(() => null),
       ]);
-      if (!custRes.ok) { router.push('/dashboard'); return; }
+      if (!custRes.ok) { setAccessDenied(true); setLoading(false); return; }
       const custJson = await custRes.json();
       setCustomers(custJson.users ?? []);
       setConfig(custJson.config ?? { miningThreshold: 100, withdrawalThreshold: 1000 });
@@ -141,6 +162,8 @@ export default function CustomersPage() {
     if (s === 'none') return { color: '#6F6B82', bg: 'rgba(255,255,255,0.06)' };
     return { color: '#FF6B8A', bg: 'rgba(255,107,138,0.12)' };
   };
+
+  if (accessDenied) return <AccessDenied />;
 
   return (
     <div style={{ minHeight: '100vh', background: '#0B0A14', color: '#F4F3FA', fontFamily: "'Manrope', system-ui, sans-serif", padding: '28px' }}>

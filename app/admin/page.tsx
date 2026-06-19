@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
 import { EtheonCrystal } from '@/components/EtheonBrand';
+import { OWNER_ADMIN_EMAIL } from '@/lib/admin-config';
 
 function SkeletonRow() {
   return (
@@ -41,10 +42,28 @@ const STAT_CARDS = (users: UserRow[]) => [
   { icon: 'admin_panel_settings', label: 'Admins', val: users.filter(u => u.role === 'admin').length, color: '#FFB55C', bg: 'rgba(255,181,92,0.14)' },
 ];
 
+function AccessDenied() {
+  return (
+    <div style={{ minHeight: '100vh', background: '#0B0A14', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px', fontFamily: "'Manrope',sans-serif" }}>
+      <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'rgba(255,107,138,0.12)', border: '1px solid rgba(255,107,138,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="lock" size={28} color="#FF6B8A" />
+      </div>
+      <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '22px', color: '#F5F4FF' }}>Access denied</div>
+      <div style={{ fontSize: '13.5px', color: '#7D789E', textAlign: 'center', maxWidth: '300px', lineHeight: 1.6 }}>
+        This area is restricted to the platform owner only.
+      </div>
+      <Link href="/dashboard" style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '11px 22px', borderRadius: '12px', background: 'rgba(155,123,255,0.14)', border: '1px solid rgba(155,123,255,0.3)', color: '#C9BBFF', fontWeight: 700, fontSize: '13.5px', textDecoration: 'none' }}>
+        <Icon name="arrow_back" size={16} color="#C9BBFF" />Back to dashboard
+      </Link>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [search, setSearch] = useState('');
   const [editUser, setEditUser] = useState<UserRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -59,13 +78,18 @@ export default function AdminPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
+      if ((user.email ?? '').toLowerCase() !== OWNER_ADMIN_EMAIL) {
+        setAccessDenied(true); setLoading(false); return;
+      }
       const res = await fetch('/api/admin/users');
-      if (!res.ok) { router.push('/dashboard'); return; }
+      if (!res.ok) { setAccessDenied(true); setLoading(false); return; }
       const json = await res.json();
       setUsers(json.users || []);
       setLoading(false);
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- router and supabase client are stable
+
+  if (accessDenied) return <AccessDenied />;
 
   const filtered = users.filter(u =>
     (u.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
