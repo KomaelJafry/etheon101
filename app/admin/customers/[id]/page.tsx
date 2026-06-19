@@ -24,6 +24,7 @@ interface Note { id: string; note: string; created_by: string; created_at: strin
 interface Message { id: string; title: string; body: string; type: string; is_read: boolean; is_visible: boolean; created_at: string; }
 interface Config { miningThreshold: number; withdrawalThreshold: number; }
 interface DepositEvent { id: string; stripe_event_id: string; type: string; amount_cents: number; currency: string; status: string; created_at: string; }
+interface TimelineEvent { ts: string; type: string; label: string; detail: string; color: string; icon: string; source?: string; }
 
 // ── Helpers ──────────────────────────────────────────────
 function initials(name: string) {
@@ -119,7 +120,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [ethPrice, setEthPrice] = useState(3000);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'balance' | 'checks' | 'adjustments' | 'messages' | 'notes' | 'deposits'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'balance' | 'checks' | 'adjustments' | 'messages' | 'notes' | 'deposits' | 'timeline'>('overview');
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   // Form state
   const [newNote, setNewNote] = useState('');
@@ -345,6 +348,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
     { key: 'checks', icon: 'checklist', label: 'Verification' },
     { key: 'adjustments', icon: 'tune', label: 'Adjustments' },
     { key: 'deposits', icon: 'payments', label: `Deposits${pendingDeposits > 0 ? ` (${pendingDeposits})` : ''}` },
+    { key: 'timeline', icon: 'timeline', label: 'Timeline' },
     { key: 'messages', icon: 'mark_chat_read', label: 'Messages' },
     { key: 'notes', icon: 'sticky_note_2', label: 'Admin notes' },
   ] as const;
@@ -419,7 +423,15 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         {/* Tab bar */}
         <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', flexWrap: 'wrap' }}>
           {TABS.map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '12px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '13px', background: activeTab === t.key ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)', border: `1px solid ${activeTab === t.key ? 'rgba(124,92,255,0.4)' : 'rgba(255,255,255,0.08)'}`, color: activeTab === t.key ? '#C9BBFF' : '#8A8699' }}>
+            <button key={t.key} onClick={async () => {
+              setActiveTab(t.key as typeof activeTab);
+              if (t.key === 'timeline' && timeline.length === 0) {
+                setTimelineLoading(true);
+                const res = await fetch(`/api/admin/customers/${id}/timeline`);
+                if (res.ok) { const j = await res.json(); setTimeline(j.events ?? []); }
+                setTimelineLoading(false);
+              }
+            }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '12px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '13px', background: activeTab === t.key ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)', border: `1px solid ${activeTab === t.key ? 'rgba(124,92,255,0.4)' : 'rgba(255,255,255,0.08)'}`, color: activeTab === t.key ? '#C9BBFF' : '#8A8699' }}>
               <Icon name={t.icon} size={16} color={activeTab === t.key ? '#C9BBFF' : '#8A8699'} />
               {t.label}
             </button>
@@ -455,6 +467,60 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               )}
             </Card>
+            {/* Risk Score Card */}
+            {(() => {
+              const sub0 = (profile.subscriptions ?? []).find((s: Subscription) => s.status === 'active' || s.status === 'trialing');
+              const depCount = deposits.length;
+              const creditedDeps = deposits.filter(d => d.status === 'credited').length;
+              const hasTx = (profile.transactions ?? []).length > 0;
+              const accountAgeDays = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000);
+              const checksComplete = checks.filter(c => c.status === 'complete').length;
+              const totalChecks = checks.length || DEFAULT_CHECKS.length;
+              let score = 0;
+              if (profile.is_active) score += 15;
+              if (sub0) score += 25;
+              if (creditedDeps > 0) score += 20;
+              if (hasTx) score += 10;
+              if (accountAgeDays > 7) score += 10;
+              if (checksComplete >= Math.ceil(totalChecks * 0.5)) score += 10;
+              if (profile.eth_balance > 0) score += 10;
+              const riskLevel = score >= 70 ? 'Low Risk' : score >= 40 ? 'Medium Risk' : 'High Risk';
+              const riskColor = score >= 70 ? '#16D98A' : score >= 40 ? '#FFB55C' : '#FF6B8A';
+              const signals = [
+                { label: 'Account active',          ok: profile.is_active },
+                { label: 'Subscription active',      ok: !!sub0 },
+                { label: 'Deposit credited',         ok: creditedDeps > 0 },
+                { label: 'Has transactions',         ok: hasTx },
+                { label: 'Account age > 7 days',     ok: accountAgeDays > 7 },
+                { label: 'Verification ≥ 50%',       ok: checksComplete >= Math.ceil(totalChecks * 0.5) },
+                { label: 'ETH balance > 0',          ok: profile.eth_balance > 0 },
+              ];
+              return (
+                <Card style={{ background: `linear-gradient(180deg,${riskColor}0A,transparent)`, borderColor: `${riskColor}30` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <SectionTitle icon="shield" title="Risk Assessment" />
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontFamily: "'Space Grotesk'", fontSize: '24px', fontWeight: 700, color: riskColor }}>{score}/100</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: riskColor }}>{riskLevel}</div>
+                    </div>
+                  </div>
+                  <div style={{ height: '6px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', marginBottom: '16px' }}>
+                    <div style={{ height: '100%', borderRadius: '999px', background: riskColor, width: `${score}%`, transition: 'width 0.5s ease' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {signals.map(s => (
+                      <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: s.ok ? 'rgba(22,217,138,0.15)' : 'rgba(255,107,138,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Icon name={s.ok ? 'check' : 'close'} size={11} color={s.ok ? '#16D98A' : '#FF6B8A'} />
+                        </div>
+                        <span style={{ fontSize: '12px', color: s.ok ? '#B6B3D9' : '#7E7A8F' }}>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })()}
+
             <Card style={{ gridColumn: '1/-1' }}>
               <SectionTitle icon="receipt_long" title="Recent transactions" subtitle="Last 10 transactions" />
               {(profile.transactions ?? []).length === 0 ? (
@@ -867,6 +933,46 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
             </Card>
           </div>
+        )}
+
+        {/* ── TAB: Timeline ─────────────────────────────────── */}
+        {activeTab === 'timeline' && (
+          <Card>
+            <SectionTitle icon="timeline" title="Customer Journey Timeline" subtitle="Chronological record of every significant event for this customer." />
+            {timelineLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: '60px', borderRadius: '12px' }} />)}
+              </div>
+            ) : timeline.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#6F6B82', fontSize: '13px' }}>
+                <Icon name="timeline" size={36} color="#3A374F" style={{ marginBottom: '8px' }} />
+                <div style={{ fontWeight: 700 }}>No events yet</div>
+                <div style={{ marginTop: '4px', fontSize: '12px' }}>Events will appear as the customer uses the platform.</div>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                {/* Vertical line */}
+                <div style={{ position: 'absolute', left: '16px', top: '20px', bottom: '20px', width: '2px', background: 'rgba(255,255,255,0.07)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {timeline.map((ev, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '16px', padding: '10px 0', alignItems: 'flex-start', position: 'relative' }}>
+                      <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: `${ev.color}1A`, border: `2px solid ${ev.color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1 }}>
+                        <Icon name={ev.icon} size={15} color={ev.color} />
+                      </div>
+                      <div style={{ flex: 1, paddingTop: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#E9E7F2' }}>{ev.label}</span>
+                          {ev.source && <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#6F6B82', background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.08)' }}>{ev.source}</span>}
+                        </div>
+                        {ev.detail && <div style={{ fontSize: '12px', color: '#7E7A8F', marginTop: '2px', lineHeight: 1.5 }}>{ev.detail}</div>}
+                        <div style={{ fontSize: '11px', color: '#5A5673', marginTop: '4px' }}>{new Date(ev.ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
         )}
 
       </div>

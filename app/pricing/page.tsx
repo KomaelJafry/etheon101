@@ -193,7 +193,7 @@ export default function PricingPage() {
           {PLANS.map(plan => {
             const busy = loadingPlan === plan.id;
             return (
-              <div key={plan.id} style={{ position: 'relative', borderRadius: '24px', padding: plan.highlight ? '36px 30px' : '28px 26px', background: plan.highlight ? 'linear-gradient(160deg,rgba(124,92,255,0.2),rgba(110,139,255,0.06))' : 'linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))', border: plan.highlight ? '1.5px solid rgba(124,92,255,0.5)' : '1px solid rgba(255,255,255,0.09)', boxShadow: plan.highlight ? '0 0 40px rgba(124,92,255,0.18)' : 'none', transform: plan.highlight ? 'translateY(-6px)' : 'none', overflow: 'hidden' }}>
+              <div key={plan.id} style={{ position: 'relative', borderRadius: '24px', padding: plan.highlight ? '36px 30px' : '28px 26px', background: plan.highlight ? 'linear-gradient(160deg,rgba(124,92,255,0.22),rgba(110,139,255,0.08))' : 'linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))', border: plan.highlight ? '2px solid rgba(124,92,255,0.65)' : '1px solid rgba(255,255,255,0.09)', boxShadow: plan.highlight ? '0 0 60px rgba(124,92,255,0.28), 0 0 120px rgba(124,92,255,0.12), inset 0 1px 0 rgba(255,255,255,0.1)' : 'none', transform: plan.highlight ? 'translateY(-10px) scale(1.02)' : 'none', overflow: 'hidden', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}>
 
                 {/* Glow blob for highlight card */}
                 {plan.highlight && (

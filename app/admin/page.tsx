@@ -18,12 +18,20 @@ interface DashboardStats {
 }
 interface PendingDeposit {
   id: string; amount_cents: number; currency: string; created_at: string; user_id: string;
+  profiles?: { full_name: string; email: string } | null;
 }
 interface RecentSignup {
   id: string; full_name: string; email: string; created_at: string; is_active: boolean;
 }
 interface RecentAction {
   id: string; action: string; target_table: string | null; target_id: string | null; created_at: string; admin_id: string;
+}
+interface NotifCounts {
+  pending_deposits: number;
+  pending_withdrawals: number;
+  new_signups_24h: number;
+  pending_checks: number;
+  total: number;
 }
 
 // ── Helpers ──────────────────────────────────────────────
@@ -100,6 +108,16 @@ function NavLink({ href, icon, label }: { href: string; icon: string; label: str
   );
 }
 
+// ── Age helper ────────────────────────────────────────────
+function depositAge(d: string) {
+  const ms = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 // ── Main page ─────────────────────────────────────────────
 export default function AdminDashboard() {
   const router = useRouter();
@@ -109,6 +127,7 @@ export default function AdminDashboard() {
   const [pendingDeposits, setPendingDeposits] = useState<PendingDeposit[]>([]);
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([]);
   const [recentActions, setRecentActions] = useState<RecentAction[]>([]);
+  const [notif, setNotif] = useState<NotifCounts | null>(null);
 
   useEffect(() => { document.title = 'Admin | Etheon'; }, []);
 
@@ -124,13 +143,17 @@ export default function AdminDashboard() {
       if ((user.email ?? '').toLowerCase() !== OWNER_ADMIN_EMAIL) {
         setAccessDenied(true); setLoading(false); return;
       }
-      const res = await fetch('/api/admin/dashboard');
-      if (!res.ok) { setAccessDenied(true); setLoading(false); return; }
-      const json = await res.json();
+      const [dashRes, notifRes] = await Promise.all([
+        fetch('/api/admin/dashboard'),
+        fetch('/api/admin/notifications'),
+      ]);
+      if (!dashRes.ok) { setAccessDenied(true); setLoading(false); return; }
+      const json = await dashRes.json();
       setStats(json.stats);
       setPendingDeposits(json.pending_deposits ?? []);
       setRecentSignups(json.recent_signups ?? []);
       setRecentActions(json.recent_actions ?? []);
+      if (notifRes.ok) setNotif(await notifRes.json());
       setLoading(false);
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -188,8 +211,23 @@ export default function AdminDashboard() {
             <h1 style={{ margin: 0, fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '26px', letterSpacing: '-0.02em' }}>Operations centre</h1>
             <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '3px' }}>Owner control panel · live data from Supabase</div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Notification bell */}
+            <div style={{ position: 'relative', display: 'inline-flex' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="notifications" size={20} color="#C9BBFF" />
+              </div>
+              {notif && notif.total > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-4px', minWidth: '18px', height: '18px', borderRadius: '999px', background: '#FF6B8A', border: '2px solid #0B0A14', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff', padding: '0 3px' }}>
+                  {notif.total > 99 ? '99+' : notif.total}
+                </span>
+              )}
+            </div>
+            <NavLink href="/admin/deposits" icon="payments" label="Deposits" />
+            <NavLink href="/admin/withdrawals" icon="north_east" label="Withdrawals" />
+            <NavLink href="/admin/revenue" icon="trending_up" label="Revenue" />
             <NavLink href="/admin/customers" icon="group" label="Customers" />
+            <NavLink href="/admin/audit" icon="history" label="Audit" />
             <NavLink href="/admin/content" icon="edit_note" label="Content" />
             <NavLink href="/admin/system" icon="monitor_heart" label="System" />
             <NavLink href="/dashboard" icon="arrow_back" label="Back to app" />
@@ -203,19 +241,58 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {/* Notification Summary */}
+        {!loading && notif && notif.total > 0 && (
+          <div style={{ borderRadius: '18px', padding: '16px 22px', background: 'rgba(255,107,138,0.07)', border: '1px solid rgba(255,107,138,0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(255,107,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="notifications_active" size={15} color="#FF6B8A" />
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '13.5px', color: '#FF8DA3' }}>Action required</span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flex: 1, flexWrap: 'wrap' }}>
+              {notif.pending_deposits > 0 && (
+                <Link href="/admin/deposits" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '8px', background: 'rgba(255,181,92,0.14)', border: '1px solid rgba(255,181,92,0.3)', color: '#FFB55C', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
+                  <Icon name="payments" size={13} color="#FFB55C" /> {notif.pending_deposits} pending deposit{notif.pending_deposits !== 1 ? 's' : ''}
+                </Link>
+              )}
+              {notif.pending_withdrawals > 0 && (
+                <Link href="/admin/withdrawals" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '8px', background: 'rgba(110,139,255,0.12)', border: '1px solid rgba(110,139,255,0.25)', color: '#6E8BFF', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
+                  <Icon name="north_east" size={13} color="#6E8BFF" /> {notif.pending_withdrawals} pending withdrawal{notif.pending_withdrawals !== 1 ? 's' : ''}
+                </Link>
+              )}
+              {notif.pending_checks > 0 && (
+                <Link href="/admin/customers" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '8px', background: 'rgba(155,123,255,0.12)', border: '1px solid rgba(155,123,255,0.25)', color: '#9b7bff', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
+                  <Icon name="verified_user" size={13} color="#9b7bff" /> {notif.pending_checks} verification check{notif.pending_checks !== 1 ? 's' : ''}
+                </Link>
+              )}
+              {notif.new_signups_24h > 0 && (
+                <Link href="/admin/customers" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '8px', background: 'rgba(22,217,138,0.1)', border: '1px solid rgba(22,217,138,0.2)', color: '#16D98A', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
+                  <Icon name="person_add" size={13} color="#16D98A" /> {notif.new_signups_24h} new signup{notif.new_signups_24h !== 1 ? 's' : ''} today
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Two-column lower section */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
 
           {/* Pending deposit reviews */}
-          <div style={{ borderRadius: '24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+          <div style={{ borderRadius: '24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,181,92,0.15)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(255,181,92,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name="pending_actions" size={18} color="#FFB55C" />
                 </div>
-                <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '15px' }}>Pending deposit reviews</span>
+                <div>
+                  <span style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '15px' }}>Pending deposit reviews</span>
+                  {stats && stats.pending_deposits > 0 && (
+                    <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(255,181,92,0.2)', color: '#FFB55C', fontSize: '11px', fontWeight: 700 }}>{stats.pending_deposits}</span>
+                  )}
+                </div>
               </div>
-              <Link href="/admin/customers" style={{ fontSize: '12px', fontWeight: 700, color: '#9b7bff', textDecoration: 'none' }}>View all →</Link>
+              <Link href="/admin/deposits" style={{ fontSize: '12px', fontWeight: 700, color: '#9b7bff', textDecoration: 'none' }}>View all →</Link>
             </div>
             <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {loading ? (
@@ -230,16 +307,26 @@ export default function AdminDashboard() {
                   <div style={{ color: '#16D98A', fontWeight: 700 }}>No pending deposits</div>
                 </div>
               ) : pendingDeposits.map(dep => (
-                <div key={dep.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '13px', background: 'rgba(255,181,92,0.06)', border: '1px solid rgba(255,181,92,0.2)' }}>
-                  <div>
-                    <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#E9E7F2' }}>{fmtGbp(dep.amount_cents)}</div>
-                    <div style={{ fontSize: '11px', color: '#8A8699', marginTop: '2px' }}>{fmtDateTime(dep.created_at)}</div>
+                <div key={dep.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '13px', background: 'rgba(255,181,92,0.06)', border: '1px solid rgba(255,181,92,0.2)', gap: '10px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>{fmtGbp(dep.amount_cents)}</span>
+                      <span style={{ fontSize: '11px', color: '#FFB55C', fontWeight: 700 }}>{depositAge(dep.created_at)}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#8A8699', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {dep.profiles ? `${dep.profiles.full_name} · ${dep.profiles.email}` : dep.user_id.slice(0, 20) + '…'}
+                    </div>
                   </div>
-                  <Link href={`/admin/customers/${dep.user_id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '9px', background: 'rgba(255,181,92,0.14)', border: '1px solid rgba(255,181,92,0.3)', color: '#FFB55C', fontSize: '12px', fontWeight: 700, textDecoration: 'none' }}>
+                  <Link href={`/admin/deposits`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '9px', background: 'rgba(255,181,92,0.14)', border: '1px solid rgba(255,181,92,0.3)', color: '#FFB55C', fontSize: '12px', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
                     Review <Icon name="open_in_new" size={12} color="#FFB55C" />
                   </Link>
                 </div>
               ))}
+              {pendingDeposits.length > 0 && (
+                <Link href="/admin/deposits" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', borderRadius: '12px', border: '1px dashed rgba(255,181,92,0.25)', color: '#FFB55C', fontSize: '12px', fontWeight: 700, textDecoration: 'none', marginTop: '4px' }}>
+                  Open Deposit Operations Centre <Icon name="arrow_forward" size={13} color="#FFB55C" />
+                </Link>
+              )}
             </div>
           </div>
 

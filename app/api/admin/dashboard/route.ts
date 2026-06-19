@@ -29,10 +29,10 @@ export async function GET() {
       .select('*', { count: 'exact', head: true })
       .in('status', ['active', 'trialing']),
 
-    // Pending deposit reviews
+    // Pending deposit reviews (with customer profile)
     supabase
       .from('payment_events')
-      .select('id, amount_cents, currency, created_at, user_id', { count: 'exact' })
+      .select('id, amount_cents, currency, created_at, user_id, profiles(full_name, email)', { count: 'exact' })
       .eq('status', 'pending_review')
       .order('created_at', { ascending: false })
       .limit(10),

@@ -36,6 +36,9 @@ function DepositPageInner() {
   const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
 
+  // Deposit tracker
+  const [recentDeposit, setRecentDeposit] = useState<{ status: string; amount_cents: number; created_at: string } | null>(null);
+
   async function handleSubscribe() {
     if (!profile) { window.location.href = '/login?next=/deposit'; return; }
     setSubLoading(true);
@@ -61,6 +64,22 @@ function DepositPageInner() {
   }
 
   useEffect(() => { document.title = 'Deposit Funds | Etheon'; }, []);
+
+  // Load most recent deposit for tracker
+  useEffect(() => {
+    if (!profile) return;
+    const sb = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    sb.from('payment_events')
+      .select('status, amount_cents, created_at')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => { if (data) setRecentDeposit(data); });
+  }, [profile]);
 
   useEffect(() => {
     const supabase = createBrowserClient(
@@ -195,6 +214,62 @@ function DepositPageInner() {
       </nav>
 
       <main style={{ position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto', padding: '12px 28px 80px' }}>
+
+        {/* Deposit Status Tracker */}
+        {recentDeposit && (() => {
+          const steps = [
+            { key: 'submitted',  label: 'Deposit Submitted',  icon: 'upload' },
+            { key: 'verified',   label: 'Payment Verified',   icon: 'verified' },
+            { key: 'review',     label: 'Under Review',       icon: 'manage_search' },
+            { key: 'awaiting',   label: 'Awaiting Credit',    icon: 'hourglass_top' },
+            { key: 'credited',   label: 'Credited',           icon: 'check_circle' },
+          ];
+          const stepIndex =
+            recentDeposit.status === 'credited'       ? 4 :
+            recentDeposit.status === 'rejected'       ? -1 :
+            recentDeposit.status === 'refunded'       ? -1 :
+            recentDeposit.status === 'pending_review' ? 2  : 1;
+          const isRejected = ['rejected', 'refunded'].includes(recentDeposit.status);
+          const gbp = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(recentDeposit.amount_cents / 100);
+          return (
+            <div style={{ marginBottom: '28px', borderRadius: '20px', padding: '20px 24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '14px' }}>Your most recent deposit — {gbp}</div>
+                  <div style={{ fontSize: '12px', color: '#7E7A8F', marginTop: '2px' }}>{new Date(recentDeposit.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                </div>
+                {isRejected && <span style={{ fontSize: '12px', fontWeight: 700, color: '#FF6B8A', background: 'rgba(255,107,138,0.12)', padding: '4px 12px', borderRadius: '999px', border: '1px solid rgba(255,107,138,0.25)' }}>{recentDeposit.status}</span>}
+              </div>
+              {isRejected ? (
+                <div style={{ fontSize: '13px', color: '#FF8DA3', background: 'rgba(255,107,138,0.07)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,107,138,0.2)' }}>
+                  This deposit was {recentDeposit.status}. Please contact support if you have questions.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '0', position: 'relative' }}>
+                  {steps.map((step, i) => {
+                    const done    = i < stepIndex;
+                    const current = i === stepIndex;
+                    const color   = done ? '#16D98A' : current ? '#9b7bff' : '#3A3750';
+                    const textCol = done ? '#16D98A' : current ? '#C9BBFF' : '#5A5673';
+                    return (
+                      <div key={step.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                        {/* Connector line */}
+                        {i > 0 && (
+                          <div style={{ position: 'absolute', top: '16px', left: '-50%', right: '50%', height: '2px', background: done || current ? (done ? '#16D98A' : '#9b7bff55') : 'rgba(255,255,255,0.08)', zIndex: 0 }} />
+                        )}
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: done ? 'rgba(22,217,138,0.15)' : current ? 'rgba(155,123,255,0.18)' : 'rgba(255,255,255,0.05)', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, transition: 'all 0.3s' }}>
+                          <Icon name={step.icon} size={14} color={color} />
+                        </div>
+                        <div style={{ fontSize: '10.5px', fontWeight: 700, color: textCol, textAlign: 'center', lineHeight: 1.3 }}>{step.label}</div>
+                        {current && <div style={{ fontSize: '10px', color: '#9b7bff', fontWeight: 700 }}>← Current</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Header */}
         <div style={{ marginBottom: '32px' }}>
