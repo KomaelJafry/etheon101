@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     .from('transactions')
     .select(
       `id, type, amount_eth, amount_usd, status, description, created_at, user_id,
-       profiles(id, full_name, email, eth_balance, is_active, eth_wallet_address)`,
+       profiles!user_id(id, full_name, email, eth_balance, is_active, eth_wallet_address)`,
       { count: 'exact' }
     )
     .eq('type', 'withdrawal')
