@@ -60,9 +60,17 @@ export default function MiningPage() {
 
   // Historical variable name kept for prop compatibility; value is treated as GBP
   const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
-  const isSubscribed = profile?.is_active ?? false;
+  const isSubscribed =
+    (profile?.is_active ?? false) ||
+    (profile?.admin_subscription_override === true && profile?.admin_subscription_status === 'active');
+  const miningOverride = profile?.admin_mining_override ?? null;
   const hasMinBalance = balanceUsd >= miningThreshold;
-  const isEligible = isSubscribed && hasMinBalance;
+  const isEligible =
+    miningOverride === 'unlocked' || miningOverride === 'active'
+      ? true
+      : miningOverride === 'locked' || miningOverride === 'paused'
+        ? false
+        : isSubscribed && hasMinBalance;
 
   const [isActiveLive, setIsActiveLive] = useState(false);
   const [localHashrate, setLocalHashrate] = useState(0);

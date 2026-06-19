@@ -6,12 +6,20 @@ export interface AppProfile {
   id: string;
   full_name: string;
   eth_balance: number;
+  gbp_balance: number;
   hashrate_th: number;
   hashrate_capacity_th: number;
   mining_status: string;
   vip_tier: number;
   is_active: boolean;
+  account_status: string;
   eth_wallet_address?: string;
+  // Admin override fields
+  admin_subscription_override: boolean;
+  admin_subscription_status: string | null;
+  admin_subscription_plan: string | null;
+  admin_mining_override: string | null;
+  admin_withdrawal_override: string | null;
 }
 
 interface AppCtx {
@@ -38,7 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('profiles')
-      .select('id,full_name,eth_balance,hashrate_th,hashrate_capacity_th,mining_status,vip_tier,is_active,eth_wallet_address')
+      .select('id,full_name,eth_balance,gbp_balance,hashrate_th,hashrate_capacity_th,mining_status,vip_tier,is_active,account_status,eth_wallet_address,admin_subscription_override,admin_subscription_status,admin_subscription_plan,admin_mining_override,admin_withdrawal_override')
       .eq('id', user.id)
       .single();
     if (data) setProfile(data);

@@ -120,9 +120,23 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [ethPrice, setEthPrice] = useState(3000);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'balance' | 'checks' | 'adjustments' | 'messages' | 'notes' | 'deposits' | 'timeline'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'balance' | 'checks' | 'adjustments' | 'messages' | 'notes' | 'deposits' | 'timeline' | 'owner-controls'>('overview');
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
+
+  // Owner-controls form state
+  const [ownerCtrl, setOwnerCtrl] = useState<Record<string, unknown> | null>(null);
+  const [ownerLoading, setOwnerLoading] = useState(false);
+  // Balance control
+  const [balCtrl, setBalCtrl] = useState({ currency: 'GBP', operation: 'add', amount: '', reason: '', internal_note: '' });
+  const [balSaving, setBalSaving] = useState(false);
+  const [balConfirm, setBalConfirm] = useState(false);
+  // Subscription override
+  const [subCtrl, setSubCtrl] = useState({ override: false, status: 'active', plan: 'Manual', interval: 'manual', reason: '' });
+  const [subSaving, setSubSaving] = useState(false);
+  // Access override
+  const [accCtrl, setAccCtrl] = useState({ account_status: 'active', admin_mining_override: '', admin_withdrawal_override: '', reason: '' });
+  const [accSaving, setAccSaving] = useState(false);
 
   // Form state
   const [newNote, setNewNote] = useState('');
@@ -344,6 +358,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
   const TABS = [
     { key: 'overview', icon: 'person', label: 'Overview' },
+    { key: 'owner-controls', icon: 'admin_panel_settings', label: 'Owner Controls' },
     { key: 'balance', icon: 'account_balance_wallet', label: 'Balance & Unlock' },
     { key: 'checks', icon: 'checklist', label: 'Verification' },
     { key: 'adjustments', icon: 'tune', label: 'Adjustments' },
@@ -430,6 +445,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 const res = await fetch(`/api/admin/customers/${id}/timeline`);
                 if (res.ok) { const j = await res.json(); setTimeline(j.events ?? []); }
                 setTimelineLoading(false);
+              }
+              if (t.key === 'owner-controls' && !ownerCtrl) {
+                setOwnerLoading(true);
+                const res = await fetch(`/api/admin/customers/${id}/owner-controls`);
+                if (res.ok) { const j = await res.json(); setOwnerCtrl(j.profile); setSubCtrl(s => ({ ...s, override: j.profile.admin_subscription_override ?? false, status: j.profile.admin_subscription_status ?? 'active', plan: j.profile.admin_subscription_plan ?? 'Manual', interval: j.profile.admin_subscription_interval ?? 'manual' })); setAccCtrl(s => ({ ...s, account_status: j.profile.account_status ?? 'active', admin_mining_override: j.profile.admin_mining_override ?? '', admin_withdrawal_override: j.profile.admin_withdrawal_override ?? '' })); }
+                setOwnerLoading(false);
               }
             }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', borderRadius: '12px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '13px', background: activeTab === t.key ? 'rgba(124,92,255,0.22)' : 'rgba(255,255,255,0.04)', border: `1px solid ${activeTab === t.key ? 'rgba(124,92,255,0.4)' : 'rgba(255,255,255,0.08)'}`, color: activeTab === t.key ? '#C9BBFF' : '#8A8699' }}>
               <Icon name={t.icon} size={16} color={activeTab === t.key ? '#C9BBFF' : '#8A8699'} />
@@ -976,6 +997,263 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         )}
 
       </div>
+
+        {/* ── TAB: Owner Controls ───────────────────────────── */}
+        {activeTab === 'owner-controls' && (() => {
+          const fmtGbp = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+          const fmtEth = (n: number) => `${n.toFixed(8)} ETH`;
+          const currentEth = profile?.eth_balance ?? 0;
+          const currentGbp = (ownerCtrl as any)?.gbp_balance ?? 0;
+
+          async function saveBalance() {
+            const amt = parseFloat(balCtrl.amount);
+            if (!isFinite(amt) || amt <= 0) { showToast('Amount must be a positive number', 'error'); return; }
+            if (!balCtrl.reason.trim() || !balCtrl.internal_note.trim()) { showToast('Reason and internal note are required', 'error'); return; }
+            setBalSaving(true);
+            const res = await fetch(`/api/admin/customers/${id}/owner-controls`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'balance', currency: balCtrl.currency, operation: balCtrl.operation, amount: amt, reason: balCtrl.reason, internal_note: balCtrl.internal_note }),
+            });
+            const json = await res.json();
+            if (res.ok) {
+              showToast(`${balCtrl.currency} balance updated`, 'success');
+              setBalConfirm(false);
+              setBalCtrl(s => ({ ...s, amount: '', reason: '', internal_note: '' }));
+              const updRes = await fetch(`/api/admin/customers/${id}/owner-controls`);
+              if (updRes.ok) { const j = await updRes.json(); setOwnerCtrl(j.profile); }
+              if (balCtrl.currency === 'ETH') setProfile(p => p ? { ...p, eth_balance: json.eth_balance } : p);
+            } else { showToast(json.error ?? 'Balance update failed', 'error'); }
+            setBalSaving(false);
+          }
+
+          async function saveSubscription() {
+            if (!subCtrl.reason.trim()) { showToast('Reason is required', 'error'); return; }
+            setSubSaving(true);
+            const res = await fetch(`/api/admin/customers/${id}/owner-controls`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'subscription', override: subCtrl.override, status: subCtrl.override ? subCtrl.status : null, plan: subCtrl.override ? subCtrl.plan : null, interval: subCtrl.override ? subCtrl.interval : null, reason: subCtrl.reason }),
+            });
+            const json = await res.json();
+            if (res.ok) { showToast(subCtrl.override ? 'Subscription override granted' : 'Subscription override revoked', 'success'); setSubCtrl(s => ({ ...s, reason: '' })); setOwnerCtrl(prev => prev ? { ...prev, admin_subscription_override: subCtrl.override, admin_subscription_status: subCtrl.override ? subCtrl.status : null, admin_subscription_plan: subCtrl.override ? subCtrl.plan : null } : prev); }
+            else { showToast(json.error ?? 'Subscription override failed', 'error'); }
+            setSubSaving(false);
+          }
+
+          async function saveAccess() {
+            if (!accCtrl.reason.trim()) { showToast('Reason is required', 'error'); return; }
+            setAccSaving(true);
+            const res = await fetch(`/api/admin/customers/${id}/owner-controls`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'access', account_status: accCtrl.account_status, admin_mining_override: accCtrl.admin_mining_override || null, admin_withdrawal_override: accCtrl.admin_withdrawal_override || null, reason: accCtrl.reason }),
+            });
+            const json = await res.json();
+            if (res.ok) { showToast('Access overrides saved', 'success'); setAccCtrl(s => ({ ...s, reason: '' })); setOwnerCtrl(prev => prev ? { ...prev, account_status: accCtrl.account_status, admin_mining_override: accCtrl.admin_mining_override || null, admin_withdrawal_override: accCtrl.admin_withdrawal_override || null } : prev); }
+            else { showToast(json.error ?? 'Access override failed', 'error'); }
+            setAccSaving(false);
+          }
+
+          const inputStyle: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 13px', color: '#F4F3FA', fontSize: '14px', fontFamily: "'Manrope',sans-serif", outline: 'none', boxSizing: 'border-box' };
+          const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
+          const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#7E7A8F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' };
+          const warnBox = (msg: string) => (
+            <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,181,92,0.08)', border: '1px solid rgba(255,181,92,0.25)', fontSize: '12.5px', color: '#FFB55C', lineHeight: 1.5, marginBottom: '16px' }}>{msg}</div>
+          );
+
+          if (ownerLoading) return <Card><div style={{ textAlign: 'center', padding: '40px', color: '#7E7A8F' }}>Loading owner controls…</div></Card>;
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+              {/* ── Balance Control ─────────────────────────── */}
+              <Card>
+                <SectionTitle icon="currency_pound" title="Balance Control" subtitle="Add, subtract, or set ETH or GBP balance. Every change is audited." />
+                {warnBox('All balance changes create an immutable transaction record and audit log entry.')}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={labelStyle}>Currency</label>
+                    <select style={selectStyle} value={balCtrl.currency} onChange={e => setBalCtrl(s => ({ ...s, currency: e.target.value }))}>
+                      <option value="GBP">GBP</option>
+                      <option value="ETH">ETH</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Operation</label>
+                    <select style={selectStyle} value={balCtrl.operation} onChange={e => setBalCtrl(s => ({ ...s, operation: e.target.value }))}>
+                      <option value="add">Add</option>
+                      <option value="subtract">Subtract</option>
+                      <option value="set">Set (exact)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={labelStyle}>Amount ({balCtrl.currency})</label>
+                  <input type="number" min="0.00000001" step="any" style={inputStyle} placeholder={balCtrl.currency === 'GBP' ? '0.00' : '0.00000000'} value={balCtrl.amount} onChange={e => setBalCtrl(s => ({ ...s, amount: e.target.value }))} />
+                  {(() => {
+                    const amt = parseFloat(balCtrl.amount);
+                    const cur = balCtrl.currency === 'ETH' ? currentEth : currentGbp;
+                    const fmt = balCtrl.currency === 'ETH' ? fmtEth : fmtGbp;
+                    if (!isFinite(amt) || !balCtrl.amount) return null;
+                    const next = balCtrl.operation === 'set' ? amt : balCtrl.operation === 'add' ? cur + amt : cur - amt;
+                    return <div style={{ fontSize: '12px', color: '#8A8699', marginTop: '6px' }}>Before: <strong style={{ color: '#C9BBFF' }}>{fmt(cur)}</strong> → After: <strong style={{ color: next < 0 ? '#FF6B8A' : '#16D98A' }}>{fmt(next)}</strong></div>;
+                  })()}
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={labelStyle}>Reason (customer-visible)</label>
+                  <input style={inputStyle} placeholder="e.g. Manual deposit credit" value={balCtrl.reason} onChange={e => setBalCtrl(s => ({ ...s, reason: e.target.value }))} />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={labelStyle}>Internal note (admin only) *</label>
+                  <textarea style={{ ...inputStyle, height: '70px', resize: 'vertical' }} placeholder="Internal justification for this change…" value={balCtrl.internal_note} onChange={e => setBalCtrl(s => ({ ...s, internal_note: e.target.value }))} />
+                </div>
+
+                {!balConfirm ? (
+                  <button onClick={() => { if (!balCtrl.amount || !balCtrl.reason.trim() || !balCtrl.internal_note.trim()) { showToast('Fill all fields first', 'error'); return; } setBalConfirm(true); }} style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(124,92,255,0.22)', border: '1px solid rgba(124,92,255,0.4)', color: '#C9BBFF', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                    Preview & Confirm
+                  </button>
+                ) : (
+                  <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(255,107,138,0.08)', border: '1px solid rgba(255,107,138,0.3)', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '13px', color: '#FF6B8A', fontWeight: 700, marginBottom: '8px' }}>⚠ Confirm this balance change</div>
+                    <div style={{ fontSize: '12.5px', color: '#C5C1D6', marginBottom: '12px' }}>Operation: <strong>{balCtrl.operation}</strong> {balCtrl.amount} {balCtrl.currency} · Reason: {balCtrl.reason}</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={saveBalance} disabled={balSaving} style={{ flex: 1, padding: '10px', borderRadius: '10px', background: '#FF6B8A', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: balSaving ? 'wait' : 'pointer', opacity: balSaving ? 0.6 : 1 }}>{balSaving ? 'Saving…' : 'Confirm'}</button>
+                      <button onClick={() => setBalConfirm(false)} style={{ padding: '10px 18px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#8A8699', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginTop: '16px', padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ fontSize: '12px', color: '#7E7A8F', marginBottom: '4px' }}>Current balances</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>{fmtEth(currentEth)} · {fmtGbp(currentGbp)}</div>
+                </div>
+              </Card>
+
+              {/* ── Subscription Override ───────────────────── */}
+              <Card>
+                <SectionTitle icon="workspace_premium" title="Subscription Override" subtitle="Grant or revoke access manually. Does not touch Stripe." />
+                {warnBox('This is an internal admin override. It does NOT modify Stripe billing. The override is clearly labelled as Manual Admin Override in all records.')}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <label style={{ flex: 1, fontSize: '14px', fontWeight: 600, color: '#E9E7F2' }}>Enable subscription override</label>
+                  <input type="checkbox" checked={subCtrl.override} onChange={e => setSubCtrl(s => ({ ...s, override: e.target.checked }))} style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#7C5CFF' }} />
+                </div>
+
+                {subCtrl.override && (
+                  <>
+                    <div style={{ marginBottom: '10px' }}>
+                      <label style={labelStyle}>Subscription status</label>
+                      <select style={selectStyle} value={subCtrl.status} onChange={e => setSubCtrl(s => ({ ...s, status: e.target.value }))}>
+                        <option value="active">Active</option>
+                        <option value="trialing">Trialing</option>
+                        <option value="past_due">Past due</option>
+                        <option value="canceled">Canceled</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                      <div>
+                        <label style={labelStyle}>Plan</label>
+                        <select style={selectStyle} value={subCtrl.plan} onChange={e => setSubCtrl(s => ({ ...s, plan: e.target.value }))}>
+                          <option value="Starter">Starter</option>
+                          <option value="Growth">Growth</option>
+                          <option value="Annual Pro">Annual Pro</option>
+                          <option value="Manual">Manual</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Billing interval</label>
+                        <select style={selectStyle} value={subCtrl.interval} onChange={e => setSubCtrl(s => ({ ...s, interval: e.target.value }))}>
+                          <option value="monthly">Monthly</option>
+                          <option value="yearly">Yearly</option>
+                          <option value="manual">Manual</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={labelStyle}>Override reason *</label>
+                  <input style={inputStyle} placeholder="e.g. Granted for trial period" value={subCtrl.reason} onChange={e => setSubCtrl(s => ({ ...s, reason: e.target.value }))} />
+                </div>
+                <button onClick={saveSubscription} disabled={subSaving} style={{ width: '100%', padding: '12px', borderRadius: '12px', background: subCtrl.override ? 'rgba(22,217,138,0.18)' : 'rgba(255,107,138,0.14)', border: `1px solid ${subCtrl.override ? 'rgba(22,217,138,0.4)' : 'rgba(255,107,138,0.35)'}`, color: subCtrl.override ? '#16D98A' : '#FF6B8A', fontWeight: 700, fontSize: '14px', cursor: subSaving ? 'wait' : 'pointer', opacity: subSaving ? 0.6 : 1 }}>
+                  {subSaving ? 'Saving…' : subCtrl.override ? 'Grant Subscription Access' : 'Revoke Subscription Override'}
+                </button>
+
+                {ownerCtrl && (ownerCtrl as any).admin_subscription_override && (
+                  <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(22,217,138,0.06)', border: '1px solid rgba(22,217,138,0.2)', fontSize: '12.5px', color: '#16D98A' }}>
+                    ✓ Override active — {(ownerCtrl as any).admin_subscription_status} · {(ownerCtrl as any).admin_subscription_plan}
+                  </div>
+                )}
+              </Card>
+
+              {/* ── Access Control ──────────────────────────── */}
+              <Card style={{ gridColumn: '1/-1' }}>
+                <SectionTitle icon="security" title="Access Control" subtitle="Set account status and override mining / withdrawal access. Every change is audited." />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={labelStyle}>Account status</label>
+                    <select style={selectStyle} value={accCtrl.account_status} onChange={e => setAccCtrl(s => ({ ...s, account_status: e.target.value }))}>
+                      <option value="active">Active</option>
+                      <option value="under_review">Under review</option>
+                      <option value="restricted">Restricted</option>
+                      <option value="suspended">Suspended (locks account)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Mining override</label>
+                    <select style={selectStyle} value={accCtrl.admin_mining_override} onChange={e => setAccCtrl(s => ({ ...s, admin_mining_override: e.target.value }))}>
+                      <option value="">Follow normal rules</option>
+                      <option value="unlocked">Force unlock</option>
+                      <option value="active">Force active</option>
+                      <option value="paused">Force paused</option>
+                      <option value="locked">Force locked</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Withdrawal override</label>
+                    <select style={selectStyle} value={accCtrl.admin_withdrawal_override} onChange={e => setAccCtrl(s => ({ ...s, admin_withdrawal_override: e.target.value }))}>
+                      <option value="">Follow normal rules</option>
+                      <option value="unlocked">Force unlock</option>
+                      <option value="under_review">Under review</option>
+                      <option value="locked">Force locked</option>
+                    </select>
+                  </div>
+                </div>
+
+                {accCtrl.account_status === 'suspended' && warnBox('⚠ Suspending sets is_active = false. The user will be unable to log in or access the platform.')}
+
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={labelStyle}>Reason for change *</label>
+                  <input style={inputStyle} placeholder="e.g. Suspicious withdrawal pattern under review" value={accCtrl.reason} onChange={e => setAccCtrl(s => ({ ...s, reason: e.target.value }))} />
+                </div>
+
+                <button onClick={saveAccess} disabled={accSaving} style={{ padding: '12px 28px', borderRadius: '12px', background: 'rgba(124,92,255,0.22)', border: '1px solid rgba(124,92,255,0.4)', color: '#C9BBFF', fontWeight: 700, fontSize: '14px', cursor: accSaving ? 'wait' : 'pointer', opacity: accSaving ? 0.6 : 1 }}>
+                  {accSaving ? 'Saving…' : 'Save Access Overrides'}
+                </button>
+
+                {ownerCtrl && (
+                  <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
+                    {[
+                      { label: 'Account status', val: (ownerCtrl as any).account_status ?? 'active' },
+                      { label: 'Mining override', val: (ownerCtrl as any).admin_mining_override ?? 'none (normal rules)' },
+                      { label: 'Withdrawal override', val: (ownerCtrl as any).admin_withdrawal_override ?? 'none (normal rules)' },
+                    ].map(({ label, val }) => (
+                      <div key={label} style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div style={{ fontSize: '11px', color: '#7E7A8F', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#C9BBFF' }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+            </div>
+          );
+        })()}
 
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
