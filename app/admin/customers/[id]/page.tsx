@@ -11,9 +11,16 @@ import { OWNER_ADMIN_EMAIL } from '@/lib/admin-config';
 // ── Types ────────────────────────────────────────────────
 interface Profile {
   id: string; full_name: string; email: string; role: string;
-  eth_balance: number; hashrate_th: number; mining_status: string;
-  vip_tier: number | string; is_active: boolean; created_at: string;
+  eth_balance: number; gbp_balance: number; hashrate_th: number; mining_status: string;
+  vip_tier: number | string; is_active: boolean; account_status: string; created_at: string;
   eth_wallet_address?: string;
+  // Admin override fields
+  admin_subscription_override: boolean;
+  admin_subscription_status: string | null;
+  admin_subscription_plan: string | null;
+  admin_subscription_interval: string | null;
+  admin_mining_override: string | null;
+  admin_withdrawal_override: string | null;
   subscriptions?: Subscription[];
   transactions?: Transaction[];
 }
@@ -158,6 +165,15 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
   function showToast(msg: string, type: 'success' | 'error' = 'success') {
     setToast({ msg, type });
+  }
+
+  async function loadCustomer() {
+    const res = await fetch(`/api/admin/customers/${id}`);
+    if (res.ok) {
+      const json = await res.json();
+      setProfile(json.profile);
+      setChecks(json.checks ?? []);
+    }
   }
 
   async function updateDepositStatus(depositId: string, status: 'credited' | 'rejected' | 'refunded') {
@@ -456,7 +472,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {[
               { label: profile.role, color: profile.role === 'admin' ? '#FFB55C' : '#C9BBFF', bg: profile.role === 'admin' ? 'rgba(255,181,92,0.14)' : 'rgba(124,92,255,0.14)' },
-              { label: profile.is_active ? 'Active' : 'Inactive', color: profile.is_active ? '#16D98A' : '#FF6B8A', bg: profile.is_active ? 'rgba(22,217,138,0.12)' : 'rgba(255,107,138,0.12)' },
+              { label: profile.account_status ?? (profile.is_active ? 'active' : 'inactive'), color: (profile.account_status === 'active' || (!profile.account_status && profile.is_active)) ? '#16D98A' : '#FF6B8A', bg: (profile.account_status === 'active' || (!profile.account_status && profile.is_active)) ? 'rgba(22,217,138,0.12)' : 'rgba(255,107,138,0.12)' },
               { label: sub?.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'No subscription', color: ['active','trialing'].includes(sub?.status ?? '') ? '#16D98A' : '#FFB55C', bg: ['active','trialing'].includes(sub?.status ?? '') ? 'rgba(22,217,138,0.12)' : 'rgba(255,181,92,0.12)' },
             ].map(b => (
               <span key={b.label} style={{ fontSize: '12px', fontWeight: 700, color: b.color, background: b.bg, padding: '5px 12px', borderRadius: '999px' }}>{b.label}</span>
@@ -497,7 +513,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 <Field label="Full name">{profile.full_name || '—'}</Field>
                 <Field label="Email">{profile.email}</Field>
                 <Field label="Role">{profile.role}</Field>
-                <Field label="Status">{profile.is_active ? 'Active' : 'Inactive'}</Field>
+                <Field label="Account status">{profile.account_status ?? (profile.is_active ? 'active' : 'inactive')}</Field>
+                <Field label="ETH balance">{(profile.eth_balance ?? 0).toFixed(6)} ETH</Field>
+                <Field label="GBP in-app balance">£{(profile.gbp_balance ?? 0).toFixed(2)}</Field>
+                <Field label="Subscription override">{profile.admin_subscription_override ? `✓ ${profile.admin_subscription_status ?? 'active'} (${profile.admin_subscription_plan ?? 'Manual'})` : 'None'}</Field>
+                <Field label="Mining override">{profile.admin_mining_override ?? 'None (normal rules)'}</Field>
+                <Field label="Withdrawal override">{profile.admin_withdrawal_override ?? 'None (normal rules)'}</Field>
                 <Field label="VIP tier">{typeof profile.vip_tier === 'string' ? profile.vip_tier : `Tier ${profile.vip_tier}`}</Field>
                 <Field label="Joined">{fmtDate(profile.created_at)}</Field>
               </div>
@@ -609,8 +630,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <SectionTitle icon="account_balance_wallet" title="Balance overview" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px' }}>
                 {[
-                  { label: 'ETH balance', val: `${ethBalance.toFixed(6)} ETH`, sub: `£${balanceUsd.toFixed(2)}`, color: '#16D98A' },
-                  { label: 'GBP value', val: `£${balanceUsd.toFixed(2)}`, sub: `@ £${ethPrice.toLocaleString()}/ETH`, color: '#C9BBFF' },
+                  { label: 'ETH balance', val: `${ethBalance.toFixed(6)} ETH`, sub: `≈ £${balanceUsd.toFixed(2)}`, color: '#16D98A' },
+                  { label: 'GBP in-app balance', val: `£${(profile?.gbp_balance ?? 0).toFixed(2)}`, sub: 'Admin-added fiat credit', color: '#C9BBFF' },
                   { label: 'Mining threshold', val: `£${config.miningThreshold}`, sub: miningLocked ? `£${(config.miningThreshold - balanceUsd).toFixed(2)} remaining` : 'Unlocked', color: '#FFB55C' },
                   { label: 'Withdrawal threshold', val: `£${config.withdrawalThreshold}`, sub: withdrawalLocked ? `£${(config.withdrawalThreshold - balanceUsd).toFixed(2)} remaining` : 'Unlocked', color: '#9b7bff' },
                 ].map(s => (
@@ -1030,8 +1051,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         {activeTab === 'owner-controls' && (() => {
           const fmtGbp = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
           const fmtEth = (n: number) => `${n.toFixed(8)} ETH`;
-          const currentEth = profile?.eth_balance ?? 0;
-          const currentGbp = (ownerCtrl?.gbp_balance as number) ?? 0;
+          // Prefer ownerCtrl (refreshed after each save) over profile (refreshed less frequently)
+          const currentEth = (ownerCtrl?.eth_balance as number) ?? profile?.eth_balance ?? 0;
+          const currentGbp = (ownerCtrl?.gbp_balance as number) ?? profile?.gbp_balance ?? 0;
 
           async function saveBalance() {
             const amt = parseFloat(balCtrl.amount);
@@ -1049,7 +1071,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               setBalCtrl(s => ({ ...s, amount: '', reason: '', internal_note: '' }));
               const updRes = await fetch(`/api/admin/customers/${id}/owner-controls`);
               if (updRes.ok) { const j = await updRes.json(); setOwnerCtrl(j.profile); }
-              if (balCtrl.currency === 'ETH') setProfile(p => p ? { ...p, eth_balance: json.eth_balance } : p);
+              await loadCustomer();
             } else { showToast(json.error ?? 'Balance update failed', 'error'); }
             setBalSaving(false);
           }
@@ -1067,6 +1089,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               setSubCtrl(s => ({ ...s, reason: '' }));
               const updRes = await fetch(`/api/admin/customers/${id}/owner-controls`);
               if (updRes.ok) { const j = await updRes.json(); setOwnerCtrl(j.profile); }
+              await loadCustomer();
             } else { showToast(json.error ?? 'Subscription override failed', 'error'); }
             setSubSaving(false);
           }
@@ -1084,6 +1107,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               setAccCtrl(s => ({ ...s, reason: '' }));
               const updRes = await fetch(`/api/admin/customers/${id}/owner-controls`);
               if (updRes.ok) { const j = await updRes.json(); setOwnerCtrl(j.profile); }
+              await loadCustomer();
             } else { showToast(json.error ?? 'Access override failed', 'error'); }
             setAccSaving(false);
           }
