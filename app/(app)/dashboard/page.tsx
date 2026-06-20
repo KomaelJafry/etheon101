@@ -95,12 +95,13 @@ export default function DashboardPage() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- supabase client is stable
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!profile) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLiveEth(profile.eth_balance);
     setGaugeOffset(C * (1 - (profile.hashrate_capacity_th > 0 ? Math.min(1, profile.hashrate_th / profile.hashrate_capacity_th) : 0.5)));
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!profile || profile.mining_status !== 'active') return;
@@ -117,7 +118,7 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps -- C is a constant derived from Math.PI
 
-  const usdBal  = (liveEth * ethPrice).toFixed(2);
+  const usdBal  = (liveEth * ethPrice + (profile?.gbp_balance ?? 0)).toFixed(2);
   const vipTier = profile?.vip_tier ?? 0;
   const util    = profile && profile.hashrate_capacity_th > 0 ? Math.round((profile.hashrate_th / profile.hashrate_capacity_th) * 100) : 50;
 
@@ -166,8 +167,11 @@ export default function DashboardPage() {
   const miningThreshold = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
-  const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
-  const isSubscribed = profile?.is_active ?? false;
+  const gbpBalance  = profile?.gbp_balance ?? 0;
+  const balanceUsd  = (profile?.eth_balance ?? 0) * ethPrice;
+  const isSubscribed =
+    (profile?.is_active ?? false) ||
+    (profile?.admin_subscription_override === true && profile?.admin_subscription_status === 'active');
   const miningUnlocked = isSubscribed && balanceUsd >= miningThreshold;
   const withdrawalUnlocked = balanceUsd >= withdrawThreshold;
 
@@ -200,6 +204,12 @@ export default function DashboardPage() {
                 </div>
                 <span className="sg" style={{ color:'#E9E7F2', fontWeight:600 }}>{liveEth.toFixed(6)} ETH</span>
               </div>
+              {gbpBalance > 0 && (
+                <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'6px', fontSize:'13px', color:'#A39FB5' }}>
+                  <Icon name="currency_pound" size={16} color="#16D98A" />
+                  <span style={{ color:'#16D98A', fontWeight:700 }}>£{gbpBalance.toFixed(2)} in account</span>
+                </div>
+              )}
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:'6px', background:'rgba(22,217,138,0.1)', border:'1px solid rgba(22,217,138,0.25)', padding:'7px 13px', borderRadius:'999px', flexShrink:0 }}>
               <span className="anim-pulse" style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#16D98A', boxShadow:'0 0 8px #16D98A', display:'inline-block' }} />

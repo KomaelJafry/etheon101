@@ -166,11 +166,28 @@ export default function MiningPage() {
     { icon: 'device_thermostat', color: '#FFB55C', val: isActiveLive ? '61' : '28', unit: '°C', label: 'Temp' },
   ];
 
+  const subOverrideActive =
+    profile?.admin_subscription_override === true && profile?.admin_subscription_status === 'active';
+
   return (
     <div className="resp-grid-2-mining">
 
       {/* LEFT */}
       <div style={{ display:'flex', flexDirection:'column', gap:'18px', minWidth:0 }}>
+
+        {/* Admin override banners */}
+        {subOverrideActive && (
+          <div style={{ padding:'11px 16px', borderRadius:'14px', background:'rgba(22,217,138,0.08)', border:'1px solid rgba(22,217,138,0.25)', display:'flex', alignItems:'center', gap:'10px', fontSize:'13px', color:'#16D98A', fontWeight:600 }}>
+            <Icon name="admin_panel_settings" size={17} color="#16D98A" style={{ flexShrink:0 }} />
+            Subscription access active
+          </div>
+        )}
+        {miningOverride && (
+          <div style={{ padding:'11px 16px', borderRadius:'14px', background:'rgba(124,92,255,0.08)', border:'1px solid rgba(124,92,255,0.25)', display:'flex', alignItems:'center', gap:'10px', fontSize:'13px', color:'#C9BBFF', fontWeight:600 }}>
+            <Icon name="admin_panel_settings" size={17} color="#C9BBFF" style={{ flexShrink:0 }} />
+            Mining access: {miningOverride === 'unlocked' || miningOverride === 'active' ? 'unlocked by admin' : `${miningOverride} by admin`}
+          </div>
+        )}
 
         {/* Eligibility gate */}
         {!isEligible && (
