@@ -30,8 +30,9 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('profiles')
     .select(`
-      id, email, full_name, role, eth_balance, hashrate_th, hashrate_capacity_th,
+      id, email, full_name, role, eth_balance, gbp_balance, hashrate_th, hashrate_capacity_th,
       mining_status, vip_tier, is_active, created_at, eth_wallet_address,
+      admin_mining_override, admin_subscription_override, admin_subscription_status, admin_subscription_plan,
       subscriptions(id, status, billing_period, current_period_end)
     `, { count: 'exact' })
     .eq('role', 'customer')
@@ -71,21 +72,26 @@ export async function GET(req: NextRequest) {
     const subStatus = sub?.status ?? 'none'
     const hasActiveSub = ['active', 'trialing'].includes(subStatus)
 
+    const adminSubActive = !hasActiveSub && u.admin_subscription_override && u.admin_subscription_status === 'active'
+    const effectiveSubStatus = hasActiveSub ? subStatus : adminSubActive ? 'active' : subStatus
+
     return {
       id: u.id,
       full_name: u.full_name,
       email: u.email,
       role: u.role,
       eth_balance: u.eth_balance ?? 0,
+      gbp_balance: u.gbp_balance ?? 0,
       hashrate_th: u.hashrate_th ?? 0,
       mining_status: u.mining_status,
+      admin_mining_override: u.admin_mining_override ?? null,
       vip_tier: u.vip_tier,
       is_active: u.is_active,
       created_at: u.created_at,
       has_wallet: !!u.eth_wallet_address,
-      subscription_status: subStatus,
-      subscription_plan: sub?.billing_period ?? null,
-      has_active_subscription: hasActiveSub,
+      subscription_status: effectiveSubStatus,
+      subscription_plan: sub?.billing_period ?? u.admin_subscription_plan ?? null,
+      has_active_subscription: hasActiveSub || !!adminSubActive,
       checks_total: checksTotal,
       checks_complete: checksComplete,
     }

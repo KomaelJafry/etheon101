@@ -11,7 +11,8 @@ import { OWNER_ADMIN_EMAIL } from '@/lib/admin-config';
 // ── Types ────────────────────────────────────────────────
 interface Customer {
   id: string; full_name: string; email: string; role: string;
-  eth_balance: number; hashrate_th: number; mining_status: string;
+  eth_balance: number; gbp_balance: number; hashrate_th: number; mining_status: string;
+  admin_mining_override: string | null;
   vip_tier: number | string; is_active: boolean; created_at: string;
   has_wallet: boolean; subscription_status: string; subscription_plan: string | null;
   has_active_subscription: boolean; checks_total: number; checks_complete: number;
@@ -123,9 +124,9 @@ export default function CustomersPage() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const balanceUsd = (eth: number) => eth * ethPrice;
-  const miningLocked = (eth: number) => balanceUsd(eth) < config.miningThreshold;
-  const withdrawalLocked = (eth: number) => balanceUsd(eth) < config.withdrawalThreshold;
+  const balanceUsd = (eth: number, gbp = 0) => eth * ethPrice + gbp;
+  const miningLocked = (c: Customer) => c.admin_mining_override === 'unlocked' ? false : balanceUsd(c.eth_balance, c.gbp_balance) < config.miningThreshold;
+  const withdrawalLocked = (eth: number, gbp = 0) => balanceUsd(eth, gbp) < config.withdrawalThreshold;
 
   const filtered = useMemo(() => {
     let list = customers;
@@ -140,10 +141,10 @@ export default function CustomersPage() {
     switch (filter) {
       case 'subscribed': return list.filter(c => c.has_active_subscription);
       case 'not_subscribed': return list.filter(c => !c.has_active_subscription);
-      case 'mining_unlocked': return list.filter(c => !miningLocked(c.eth_balance));
-      case 'mining_locked': return list.filter(c => miningLocked(c.eth_balance));
-      case 'withdrawal_unlocked': return list.filter(c => !withdrawalLocked(c.eth_balance));
-      case 'withdrawal_locked': return list.filter(c => withdrawalLocked(c.eth_balance));
+      case 'mining_unlocked': return list.filter(c => !miningLocked(c));
+      case 'mining_locked': return list.filter(c => miningLocked(c));
+      case 'withdrawal_unlocked': return list.filter(c => !withdrawalLocked(c.eth_balance, c.gbp_balance));
+      case 'withdrawal_locked': return list.filter(c => withdrawalLocked(c.eth_balance, c.gbp_balance));
       case 'no_wallet': return list.filter(c => !c.has_wallet);
       case 'inactive': return list.filter(c => !c.is_active);
       default: return list;
@@ -154,8 +155,8 @@ export default function CustomersPage() {
   const stats = useMemo(() => [
     { icon: 'group', label: 'Total customers', val: customers.length, color: '#7C5CFF', bg: 'rgba(124,92,255,0.14)' },
     { icon: 'workspace_premium', label: 'Active subscribers', val: customers.filter(c => c.has_active_subscription).length, color: '#16D98A', bg: 'rgba(22,217,138,0.14)' },
-    { icon: 'bolt', label: 'Mining unlocked', val: customers.filter(c => !miningLocked(c.eth_balance)).length, color: '#9b7bff', bg: 'rgba(155,123,255,0.14)' },
-    { icon: 'north_east', label: 'Withdrawal unlocked', val: customers.filter(c => !withdrawalLocked(c.eth_balance)).length, color: '#FFB55C', bg: 'rgba(255,181,92,0.14)' },
+    { icon: 'bolt', label: 'Mining unlocked', val: customers.filter(c => !miningLocked(c)).length, color: '#9b7bff', bg: 'rgba(155,123,255,0.14)' },
+    { icon: 'north_east', label: 'Withdrawal unlocked', val: customers.filter(c => !withdrawalLocked(c.eth_balance, c.gbp_balance)).length, color: '#FFB55C', bg: 'rgba(255,181,92,0.14)' },
   ], [customers, ethPrice, config]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const subColor = (s: string) => {
@@ -252,9 +253,9 @@ export default function CustomersPage() {
               <div style={{ fontSize: '13px', color: '#4A4763', marginTop: '4px' }}>Try a different search or filter.</div>
             </div>
           ) : filtered.map(c => {
-            const usd = balanceUsd(c.eth_balance);
-            const mLocked = miningLocked(c.eth_balance);
-            const wLocked = withdrawalLocked(c.eth_balance);
+            const usd = balanceUsd(c.eth_balance, c.gbp_balance);
+            const mLocked = miningLocked(c);
+            const wLocked = withdrawalLocked(c.eth_balance, c.gbp_balance);
             const sc = subColor(c.subscription_status);
             const subLabel = c.subscription_status === 'none' ? 'None' : c.subscription_status.charAt(0).toUpperCase() + c.subscription_status.slice(1);
 
@@ -274,7 +275,9 @@ export default function CustomersPage() {
                 {/* Balance */}
                 <div>
                   <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '13px', color: '#16D98A' }}>£{usd.toFixed(2)}</div>
-                  <div style={{ fontSize: '10.5px', color: '#6F6B82', marginTop: '1px' }}>{(c.eth_balance || 0).toFixed(5)} ETH</div>
+                  <div style={{ fontSize: '10.5px', color: '#6F6B82', marginTop: '1px' }}>
+                    {(c.eth_balance || 0).toFixed(5)} ETH{c.gbp_balance > 0 ? ` · £${c.gbp_balance.toFixed(2)} GBP` : ''}
+                  </div>
                 </div>
 
                 {/* Mining lock */}

@@ -264,10 +264,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   );
 
   const ethBalance = profile?.eth_balance ?? 0;
-  const balanceUsd = ethBalance * ethPrice;
+  const gbpBalance = profile?.gbp_balance ?? 0;
+  const balanceUsd = ethBalance * ethPrice + gbpBalance;
   const miningPct = Math.min(100, (balanceUsd / config.miningThreshold) * 100);
   const withdrawalPct = Math.min(100, (balanceUsd / config.withdrawalThreshold) * 100);
-  const miningLocked = balanceUsd < config.miningThreshold;
+  const miningLocked = profile?.admin_mining_override === 'unlocked' ? false : balanceUsd < config.miningThreshold;
   const withdrawalLocked = balanceUsd < config.withdrawalThreshold;
   const sub = Array.isArray(profile?.subscriptions) ? profile?.subscriptions?.[0] : profile?.subscriptions;
 
@@ -473,7 +474,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
             {[
               { label: profile.role, color: profile.role === 'admin' ? '#FFB55C' : '#C9BBFF', bg: profile.role === 'admin' ? 'rgba(255,181,92,0.14)' : 'rgba(124,92,255,0.14)' },
               { label: profile.account_status ?? (profile.is_active ? 'active' : 'inactive'), color: (profile.account_status === 'active' || (!profile.account_status && profile.is_active)) ? '#16D98A' : '#FF6B8A', bg: (profile.account_status === 'active' || (!profile.account_status && profile.is_active)) ? 'rgba(22,217,138,0.12)' : 'rgba(255,107,138,0.12)' },
-              { label: sub?.status ? sub.status.charAt(0).toUpperCase() + sub.status.slice(1) : 'No subscription', color: ['active','trialing'].includes(sub?.status ?? '') ? '#16D98A' : '#FFB55C', bg: ['active','trialing'].includes(sub?.status ?? '') ? 'rgba(22,217,138,0.12)' : 'rgba(255,181,92,0.12)' },
+              (() => {
+                const subActive = sub?.status && ['active','trialing'].includes(sub.status);
+                const overrideActive = !sub && profile.admin_subscription_override && profile.admin_subscription_status === 'active';
+                const label = subActive ? sub!.status.charAt(0).toUpperCase() + sub!.status.slice(1) : overrideActive ? `Active (${profile.admin_subscription_plan ?? 'Override'})` : 'No subscription';
+                const ok = subActive || overrideActive;
+                return { label, color: ok ? '#16D98A' : '#FFB55C', bg: ok ? 'rgba(22,217,138,0.12)' : 'rgba(255,181,92,0.12)' };
+              })(),
             ].map(b => (
               <span key={b.label} style={{ fontSize: '12px', fontWeight: 700, color: b.color, background: b.bg, padding: '5px 12px', borderRadius: '999px' }}>{b.label}</span>
             ))}
