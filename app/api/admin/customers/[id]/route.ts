@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .from('profiles')
       .select(`
         *, subscriptions(*),
-        transactions!user_id(id, type, amount_eth, amount_usd, status, description, created_at),
+        transactions!user_id(id, type, amount_eth, amount_gbp, amount_usd, status, description, created_at),
         customer_messages!user_id(id, title, body, type, is_read, is_visible, created_at)
       `)
       .eq('id', id)

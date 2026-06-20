@@ -25,7 +25,7 @@ interface Profile {
   transactions?: Transaction[];
 }
 interface Subscription { id: string; status: string; billing_period: string; current_period_end: string; }
-interface Transaction { id: string; type: string; amount_eth: number; amount_usd?: number; status: string; description?: string; created_at: string; }
+interface Transaction { id: string; type: string; amount_eth: number; amount_gbp?: number; amount_usd?: number; status: string; description?: string; created_at: string; }
 interface Check { id: string; key: string; label: string; status: 'pending' | 'complete' | 'failed' | 'not_required'; customer_visible: boolean; admin_note?: string; customer_note?: string; updated_at: string; }
 interface Note { id: string; note: string; created_by: string; created_at: string; }
 interface Message { id: string; title: string; body: string; type: string; is_read: boolean; is_visible: boolean; created_at: string; }
@@ -530,17 +530,40 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   <Field label="Status">{sub.status}</Field>
                   <Field label="Plan">{sub.billing_period ?? '—'}</Field>
                   <Field label="Renews">{sub.current_period_end ? fmtDate(sub.current_period_end) : '—'}</Field>
+                  <Field label="Source">Stripe</Field>
+                </div>
+              ) : profile.admin_subscription_override && profile.admin_subscription_status === 'active' ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '10px 14px', borderRadius: '11px', background: 'rgba(22,217,138,0.08)', border: '1px solid rgba(22,217,138,0.25)' }}>
+                    <Icon name="admin_panel_settings" size={17} color="#16D98A" />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#16D98A' }}>Active via Admin Override</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <Field label="Status"><span style={{ color: '#16D98A' }}>{profile.admin_subscription_status}</span></Field>
+                    <Field label="Plan">{profile.admin_subscription_plan ?? 'Manual'}</Field>
+                    <Field label="Interval">{profile.admin_subscription_interval ?? 'manual'}</Field>
+                    <Field label="Source"><span style={{ color: '#FFB55C' }}>Admin override only</span></Field>
+                  </div>
+                  <div style={{ marginTop: '12px', fontSize: '11.5px', color: '#6F6B82' }}>Internal override — does not modify Stripe billing.</div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '28px 0', color: '#6F6B82', fontSize: '13px' }}>
-                  <Icon name="workspace_premium" size={32} color="#3A374F" style={{ marginBottom: '8px' }} />
-                  <div>No active subscription</div>
+                <div>
+                  <div style={{ textAlign: 'center', padding: '20px 0 12px', color: '#6F6B82', fontSize: '13px' }}>
+                    <Icon name="workspace_premium" size={32} color="#3A374F" style={{ marginBottom: '8px' }} />
+                    <div>No active subscription</div>
+                  </div>
+                  {profile.admin_subscription_override && (
+                    <div style={{ padding: '9px 13px', borderRadius: '10px', background: 'rgba(255,181,92,0.08)', border: '1px solid rgba(255,181,92,0.25)', fontSize: '12px', color: '#FFB55C' }}>
+                      Override exists but status is &ldquo;{profile.admin_subscription_status ?? 'inactive'}&rdquo; — not active.
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
             {/* Risk Score Card */}
             {(() => {
               const sub0 = (profile.subscriptions ?? []).find((s: Subscription) => s.status === 'active' || s.status === 'trialing');
+              const subEffectivelyActive = !!sub0 || (profile.admin_subscription_override === true && profile.admin_subscription_status === 'active');
               const creditedDeps = deposits.filter(d => d.status === 'credited').length;
               const hasTx = (profile.transactions ?? []).length > 0;
               // eslint-disable-next-line react-hooks/purity
@@ -549,7 +572,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               const totalChecks = checks.length || DEFAULT_CHECKS.length;
               let score = 0;
               if (profile.is_active) score += 15;
-              if (sub0) score += 25;
+              if (subEffectivelyActive) score += 25;
               if (creditedDeps > 0) score += 20;
               if (hasTx) score += 10;
               if (accountAgeDays > 7) score += 10;
@@ -559,7 +582,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               const riskColor = score >= 70 ? '#16D98A' : score >= 40 ? '#FFB55C' : '#FF6B8A';
               const signals = [
                 { label: 'Account active',          ok: profile.is_active },
-                { label: 'Subscription active',      ok: !!sub0 },
+                { label: 'Subscription active',      ok: subEffectivelyActive },
                 { label: 'Deposit credited',         ok: creditedDeps > 0 },
                 { label: 'Has transactions',         ok: hasTx },
                 { label: 'Account age > 7 days',     ok: accountAgeDays > 7 },
@@ -610,8 +633,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '13px', color: ['reward','deposit'].includes(tx.type) ? '#16D98A' : '#FF6B8A' }}>
-                          {['reward','deposit'].includes(tx.type) ? '+' : '-'}{tx.amount_eth.toFixed(6)} ETH
+                        <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 600, fontSize: '13px', color: ['reward','deposit','adjustment'].includes(tx.type) ? '#16D98A' : '#FF6B8A' }}>
+                          {tx.amount_gbp != null && tx.amount_gbp > 0
+                            ? `+£${tx.amount_gbp.toFixed(2)}`
+                            : `${['reward','deposit'].includes(tx.type) ? '+' : '-'}${tx.amount_eth.toFixed(6)} ETH`}
                         </div>
                         <div style={{ fontSize: '11px', color: '#6F6B82', marginTop: '1px' }}>{fmtDate(tx.created_at)}</div>
                       </div>
