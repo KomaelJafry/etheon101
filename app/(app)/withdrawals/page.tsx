@@ -20,7 +20,7 @@ export default function WithdrawalsPage() {
 
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
-  const balanceUsd = available * ethPrice;
+  const balanceUsd = available * ethPrice + (profile?.gbp_balance ?? 0);
 
   // Admin withdrawal override takes precedence over normal threshold rules
   const withdrawOverride = profile?.admin_withdrawal_override ?? null;

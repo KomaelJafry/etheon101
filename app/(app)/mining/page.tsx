@@ -59,7 +59,7 @@ export default function MiningPage() {
   const poolName = get('mining', 'pool_name', 'Etheon Rewards Pool');
 
   // Historical variable name kept for prop compatibility; value is treated as GBP
-  const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice;
+  const balanceUsd = (profile?.eth_balance ?? 0) * ethPrice + (profile?.gbp_balance ?? 0);
   const isSubscribed =
     (profile?.is_active ?? false) ||
     (profile?.admin_subscription_override === true && profile?.admin_subscription_status === 'active');

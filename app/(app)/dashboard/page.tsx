@@ -168,7 +168,7 @@ export default function DashboardPage() {
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
   const gbpBalance  = profile?.gbp_balance ?? 0;
-  const balanceUsd  = (profile?.eth_balance ?? 0) * ethPrice;
+  const balanceUsd  = (profile?.eth_balance ?? 0) * ethPrice + (profile?.gbp_balance ?? 0);
   const isSubscribed =
     (profile?.is_active ?? false) ||
     (profile?.admin_subscription_override === true && profile?.admin_subscription_status === 'active');
