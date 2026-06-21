@@ -55,7 +55,7 @@ export default function MiningPage() {
 
   const miningThreshold = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
-  const dailyRewardUsd = get('mining', 'mining_daily_reward_usd', '20');
+  void get('mining', 'mining_daily_reward_usd', '20');
   const poolName = get('mining', 'pool_name', 'Etheon Rewards Pool');
 
   // Historical variable name kept for prop compatibility; value is treated as GBP
@@ -106,7 +106,8 @@ export default function MiningPage() {
     const id = setInterval(() => {
       const ratePerTick = (localHashrate * ETH_RATE) / 3600;
       setSessionEth(e => e + ratePerTick);
-      setSessionPct(p => { const n = p + 0.3; if (n >= 100) { setSessionEth(0); return 0; } return n; });
+      // 24-hour session: 86400s / 0.12s per tick = 720000 ticks → 100%
+      setSessionPct(p => { const n = p + (100 / 720000); return n >= 100 ? 0 : n; });
     }, 120);
     return () => clearInterval(id);
   }, [isActiveLive, localHashrate]);
@@ -145,13 +146,7 @@ export default function MiningPage() {
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
   const withdrawalLocked = balanceUsd < withdrawThreshold;
 
-  const mascotState: MascotState = !isEligible
-    ? 'locked'
-    : sessionPct >= 99
-    ? 'complete'
-    : isActiveLive
-    ? 'active'
-    : 'ready';
+  const mascotState: MascotState = !isEligible ? 'locked' : isActiveLive ? 'active' : 'ready';
 
   const miners = [
     { name: 'Etheon Rig Alpha',  sub: `Antares ASIC · ${Math.round(cap * 0.6)} TH`, status: isActiveLive ? 'Active' : 'Offline', sColor: isActiveLive?'#16D98A':'#FF6B8A', sBg: isActiveLive?'rgba(22,217,138,0.14)':'rgba(255,107,138,0.14)' },
@@ -288,7 +283,7 @@ export default function MiningPage() {
             <MiningMascot
               state={mascotState}
               sessionPct={sessionPct}
-              pendingRewardUsd={sessionPct >= 99 ? `£${dailyRewardUsd}` : undefined}
+              pendingRewardUsd={undefined}
             />
             <div style={{ position:'relative', width:'220px', height:'220px', flexShrink:0 }}>
               <svg viewBox="0 0 300 300" style={{ position:'absolute', inset:0, width:'100%', height:'100%', animation:'etheonSpin 22s linear infinite', opacity:0.4 }}>

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient()
   let query = supabase
     .from('transactions')
-    .select('id, type, amount_eth, amount_usd, status, tx_hash, description, created_at', { count: 'exact' })
+    .select('id, type, amount_eth, amount_usd, amount_gbp, status, tx_hash, description, created_at', { count: 'exact' })
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)

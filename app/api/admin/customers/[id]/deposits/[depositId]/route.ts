@@ -6,7 +6,7 @@ import { logAudit } from '@/lib/audit'
 const ALLOWED_STATUSES = ['credited', 'rejected', 'refunded'] as const
 type AllowedStatus = typeof ALLOWED_STATUSES[number]
 
-// Statuses that are terminal — cannot be overwritten
+// Terminal statuses cannot be overwritten — prevents double-credit
 const TERMINAL_STATUSES = new Set<string>(['credited', 'rejected', 'refunded'])
 
 export async function PATCH(
@@ -28,7 +28,7 @@ export async function PATCH(
 
   const supabase = await createServiceClient()
 
-  // Fetch current deposit — verify it belongs to this user
+  // Fetch deposit — verify it belongs to this user
   const { data: existing, error: fetchErr } = await supabase
     .from('payment_events')
     .select('id, status, amount_cents, currency, stripe_event_id, user_id')
@@ -40,7 +40,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Deposit not found' }, { status: 404 })
   }
 
-  // Double-credit protection — terminal statuses cannot be changed
+  // Terminal-status guard — prevents double-credit
   if (TERMINAL_STATUSES.has(existing.status)) {
     return NextResponse.json(
       { error: `Deposit is already ${existing.status}. Terminal statuses cannot be changed.` },
@@ -48,6 +48,7 @@ export async function PATCH(
     )
   }
 
+  // Mark deposit status
   const { error: updateErr } = await supabase
     .from('payment_events')
     .update({ status })
@@ -59,6 +60,64 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update deposit status' }, { status: 500 })
   }
 
+  let newGbpBalance: number | null = null
+
+  // When crediting: add GBP to customer balance + create transaction
+  if (status === 'credited') {
+    const amountCents = existing.amount_cents ?? 0
+    if (amountCents > 0) {
+      const amountGbp = amountCents / 100
+
+      // Fetch current balance
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('gbp_balance')
+        .eq('id', userId)
+        .single()
+
+      const currentBalance = (profile?.gbp_balance ?? 0) as number
+      newGbpBalance = currentBalance + amountGbp
+
+      // Credit balance
+      const { error: balErr } = await supabase
+        .from('profiles')
+        .update({ gbp_balance: newGbpBalance })
+        .eq('id', userId)
+
+      if (balErr) {
+        console.error('[admin] Failed to credit gbp_balance', balErr, userId)
+        return NextResponse.json({ error: 'Deposit marked but balance update failed: ' + balErr.message }, { status: 500 })
+      }
+
+      // Transaction record
+      const { error: txErr } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          type: 'deposit',
+          amount_eth: 0,
+          amount_gbp: amountGbp,
+          status: 'completed',
+          description: `Deposit credited after admin review (event ${existing.stripe_event_id ?? depositId})`,
+          created_by: admin!.id,
+        })
+
+      if (txErr) {
+        console.error('[admin] Failed to insert transaction for deposit', txErr, depositId)
+        // Non-fatal: balance already credited, log and continue
+      }
+
+      await logAudit({
+        adminId: admin!.id,
+        action: 'deposit_balance_credited',
+        targetTable: 'profiles',
+        targetId: userId,
+        oldValue: { gbp_balance: currentBalance },
+        newValue: { gbp_balance: newGbpBalance, amount_gbp: amountGbp, payment_event_id: depositId, stripe_event_id: existing.stripe_event_id },
+      })
+    }
+  }
+
   await logAudit({
     adminId: admin!.id,
     action: `deposit_status_${status}`,
@@ -68,5 +127,5 @@ export async function PATCH(
     newValue: { status, stripe_event_id: existing.stripe_event_id },
   })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, new_gbp_balance: newGbpBalance })
 }

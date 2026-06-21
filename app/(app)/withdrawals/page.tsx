@@ -7,6 +7,7 @@ function Skeleton({ h = 20, w = '100%' }: { h?: number; w?: string }) {
 }
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
+import Link from 'next/link';
 import { useContent } from '../../../hooks/useContent';
 import UnlockProgressCard from '../../../components/UnlockProgressCard';
 
@@ -40,6 +41,7 @@ export default function WithdrawalsPage() {
     : walletAddress || 'No wallet address set';
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showLockedModal, setShowLockedModal] = useState(false);
 
   const amt = parseFloat(amount) || 0;
   const fee = NETWORK_FEE;
@@ -48,6 +50,11 @@ export default function WithdrawalsPage() {
   const btnActive = !withdrawalLocked && !withdrawalUnderReview && amt > fee && amt <= available && !!walletAddress;
 
   async function handleSubmit() {
+    // If locked, show modal instead of submitting
+    if (withdrawalLocked || withdrawalUnderReview) {
+      setShowLockedModal(true);
+      return;
+    }
     if (!btnActive) return;
     setSubmitting(true);
     setResult(null);
@@ -169,9 +176,28 @@ export default function WithdrawalsPage() {
           ))}
         </div>
 
-        <RippleButton variant="purple" onClick={handleSubmit} disabled={!btnActive || submitting} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', fontSize: '15px', color: '#fff', padding: '15px', borderRadius: '15px', background: btnActive && !submitting ? '#7C5CFF' : 'rgba(124,92,255,0.35)', boxShadow: btnActive && !submitting ? '0 8px 22px rgba(124,92,255,0.32)' : 'none', cursor: btnActive && !submitting ? 'pointer' : 'not-allowed' }}>
-          <Icon name="north_east" size={20} color="#fff" />
-          {submitting ? 'Processing…' : `Withdraw ${amt > 0 ? amt : '0'} ETH`}
+        <RippleButton
+          variant="purple"
+          onClick={handleSubmit}
+          disabled={submitting}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px',
+            fontSize: '15px', color: '#fff', padding: '15px', borderRadius: '15px',
+            background: submitting ? 'rgba(124,92,255,0.5)' : withdrawalLocked || withdrawalUnderReview ? 'rgba(124,92,255,0.35)' : '#7C5CFF',
+            boxShadow: (!withdrawalLocked && !withdrawalUnderReview && !submitting) ? '0 8px 22px rgba(124,92,255,0.32)' : 'none',
+            cursor: submitting ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {submitting ? (
+            <>
+              <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+              Processing…
+            </>
+          ) : withdrawalLocked || withdrawalUnderReview ? (
+            <><Icon name="lock" size={18} color="rgba(255,255,255,0.6)" />Withdrawals locked</>
+          ) : (
+            <><Icon name="north_east" size={20} color="#fff" />Withdraw {amt > 0 ? amt : '0'} ETH</>
+          )}
         </RippleButton>
       </div>
 
@@ -223,6 +249,71 @@ export default function WithdrawalsPage() {
         </div>
       </div>
       </div>
+
+      {/* Withdrawal locked modal */}
+      {showLockedModal && (
+        <div
+          onClick={() => setShowLockedModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'linear-gradient(165deg,#1a1730,#0d0c1c)', border: '1px solid rgba(124,92,255,0.3)', borderRadius: '24px', padding: '32px', maxWidth: '420px', width: '100%', boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(124,92,255,0.12)' }}
+          >
+            {/* Icon */}
+            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: withdrawOverride === 'locked' ? 'rgba(255,107,138,0.12)' : withdrawalUnderReview ? 'rgba(255,181,92,0.12)' : 'rgba(124,92,255,0.12)', border: `1px solid ${withdrawOverride === 'locked' ? 'rgba(255,107,138,0.3)' : withdrawalUnderReview ? 'rgba(255,181,92,0.3)' : 'rgba(124,92,255,0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+              <Icon name={withdrawalUnderReview ? 'hourglass_empty' : 'lock'} size={26} color={withdrawOverride === 'locked' ? '#FF6B8A' : withdrawalUnderReview ? '#FFB55C' : '#C9BBFF'} />
+            </div>
+
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '20px', marginBottom: '10px' }}>
+              {withdrawOverride === 'locked'
+                ? 'Withdrawals are locked'
+                : withdrawalUnderReview
+                ? 'Withdrawal access under review'
+                : 'Withdrawals not yet unlocked'}
+            </div>
+
+            <div style={{ fontSize: '14px', color: '#A39FB5', lineHeight: 1.6, marginBottom: '24px' }}>
+              {withdrawOverride === 'locked'
+                ? 'Your withdrawal access has been restricted by the platform. Please contact support for assistance.'
+                : withdrawalUnderReview
+                ? 'Your withdrawal access is currently under review. Please contact support if you have any questions.'
+                : `Withdrawals unlock when your total balance reaches £${withdrawThreshold.toLocaleString()}.`}
+            </div>
+
+            {/* Progress (threshold only, not override) */}
+            {!withdrawOverride && (
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', marginBottom: '8px', fontWeight: 600 }}>
+                  <span style={{ color: '#A39FB5' }}>Current balance</span>
+                  <span style={{ color: '#C9BBFF' }}>£{balanceUsd.toFixed(2)}</span>
+                </div>
+                <div style={{ height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: '8px' }}>
+                  <div style={{ height: '100%', borderRadius: '999px', background: 'linear-gradient(90deg,#9b7bff,#6e8bff)', width: `${Math.min(100, (balanceUsd / withdrawThreshold) * 100)}%`, transition: 'width .4s ease' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#6F6B82' }}>
+                  <span>£{balanceUsd.toFixed(2)}</span>
+                  <span style={{ color: '#FFB55C', fontWeight: 700 }}>£{Math.max(0, withdrawThreshold - balanceUsd).toFixed(2)} remaining</span>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {!withdrawOverride && (
+                <Link href="/deposit" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '13px', borderRadius: '14px', background: '#7C5CFF', color: '#fff', fontWeight: 700, fontSize: '14px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(124,92,255,0.35)' }}>
+                  <Icon name="add_circle" size={17} color="#fff" />Add funds
+                </Link>
+              )}
+              <button
+                onClick={() => setShowLockedModal(false)}
+                style={{ flex: 1, padding: '13px', borderRadius: '14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#C5C1D6', fontWeight: 700, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
