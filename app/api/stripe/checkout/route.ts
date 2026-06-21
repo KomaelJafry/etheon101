@@ -53,26 +53,37 @@ export async function POST(req: NextRequest) {
   // Get or create Stripe customer
   let customerId = profile?.stripe_customer_id
   if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: profile?.email ?? user!.email,
-      metadata: { supabase_user_id: user!.id },
-    })
-    customerId = customer.id
-    await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user!.id)
+    try {
+      const customer = await stripe.customers.create({
+        email: profile?.email ?? user!.email,
+        metadata: { supabase_user_id: user!.id },
+      })
+      customerId = customer.id
+      await supabase.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user!.id)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[checkout] stripe.customers.create failed:', msg)
+      return NextResponse.json({ error: `Stripe error: ${msg}` }, { status: 502 })
+    }
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: 'subscription',
-    payment_method_types: ['card'],
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/account/status?subscription=success`,
-    cancel_url: `${appUrl}/mining?subscription=cancelled`,
-    metadata: { user_id: user!.id, plan },
-    subscription_data: { metadata: { user_id: user!.id, plan } },
-  })
-
-  return NextResponse.json({ url: session.url })
+  try {
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${appUrl}/account/status?subscription=success`,
+      cancel_url: `${appUrl}/mining?subscription=cancelled`,
+      metadata: { user_id: user!.id, plan },
+      subscription_data: { metadata: { user_id: user!.id, plan } },
+    })
+    return NextResponse.json({ url: session.url })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[checkout] stripe.checkout.sessions.create failed:', msg, { priceId, plan })
+    return NextResponse.json({ error: `Stripe error: ${msg}` }, { status: 502 })
+  }
 }
