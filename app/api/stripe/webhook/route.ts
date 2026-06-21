@@ -31,6 +31,10 @@ async function upsertSubscription(sub: Stripe.Subscription, supabase: Awaited<Re
     trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'stripe_subscription_id' })
+
+  // Mirror active/inactive state onto profiles so the app can gate features
+  const isActive = sub.status === 'active' || sub.status === 'trialing'
+  await supabase.from('profiles').update({ is_active: isActive }).eq('id', userId)
 }
 
 export async function POST(req: NextRequest) {
@@ -98,6 +102,10 @@ export async function POST(req: NextRequest) {
         canceled_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq('stripe_subscription_id', sub.id)
+      const deletedUserId = sub.metadata?.user_id
+      if (deletedUserId) {
+        await supabase.from('profiles').update({ is_active: false }).eq('id', deletedUserId)
+      }
       break
     }
 
