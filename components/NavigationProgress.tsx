@@ -1,10 +1,11 @@
 'use client';
-import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
+// useSearchParams throws BailoutToCSRError during Next.js 16 static prerender.
+// usePathname is safe and sufficient for detecting navigations.
 function Bar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [width, setWidth] = useState(0);
   const [visible, setVisible] = useState(false);
   const prevRef = useRef('');
@@ -12,7 +13,7 @@ function Bar() {
   const doneRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const curr = pathname + searchParams.toString();
+    const curr = pathname;
     if (!prevRef.current) { prevRef.current = curr; return; }
     if (prevRef.current === curr) return;
     prevRef.current = curr;
@@ -35,7 +36,7 @@ function Bar() {
       setWidth(100);
       setTimeout(() => { setVisible(false); setWidth(0); }, 280);
     }, 480);
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   if (!visible) return null;
 
@@ -54,9 +55,5 @@ function Bar() {
 }
 
 export default function NavigationProgress() {
-  return (
-    <Suspense fallback={null}>
-      <Bar />
-    </Suspense>
-  );
+  return <Bar />;
 }
