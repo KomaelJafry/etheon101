@@ -48,10 +48,10 @@ export async function PATCH(
     )
   }
 
-  // Mark deposit status
+  // Mark deposit status + stamp reviewer
   const { error: updateErr } = await supabase
     .from('payment_events')
-    .update({ status })
+    .update({ status, reviewed_by: admin!.id, reviewed_at: new Date().toISOString() })
     .eq('id', depositId)
     .eq('user_id', userId)
 

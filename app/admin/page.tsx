@@ -15,6 +15,9 @@ interface DashboardStats {
   pending_deposits: number;
   total_eth_held: number;
   pending_checks: number;
+  credited_today: number;
+  rejected_today: number;
+  total_deposits_reviewed: number;
 }
 interface PendingDeposit {
   id: string; amount_cents: number; currency: string; created_at: string; user_id: string;
@@ -189,6 +192,21 @@ export default function AdminDashboard() {
       sub: stats && stats.pending_checks > 0 ? 'Checks pending' : undefined,
       color: stats?.pending_checks ? '#FF6B8A' : '#8A8699',
       bg: stats?.pending_checks ? 'rgba(255,107,138,0.14)' : 'rgba(255,255,255,0.06)',
+    },
+    {
+      icon: 'check_circle', label: 'Credited today',
+      value: stats?.credited_today ?? 0,
+      color: '#16D98A', bg: 'rgba(22,217,138,0.14)',
+    },
+    {
+      icon: 'cancel', label: 'Rejected today',
+      value: stats?.rejected_today ?? 0,
+      color: '#FF6B8A', bg: 'rgba(255,107,138,0.14)',
+    },
+    {
+      icon: 'task_alt', label: 'Total deposits reviewed',
+      value: stats?.total_deposits_reviewed ?? 0,
+      color: '#C9BBFF', bg: 'rgba(124,92,255,0.14)',
     },
   ];
 

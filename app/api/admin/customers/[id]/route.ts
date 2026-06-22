@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .in('element_key', ['mining_minimum_start_balance_usd', 'withdrawal_unlock_balance_usd']),
     supabase
       .from('payment_events')
-      .select('id, stripe_event_id, type, amount_cents, currency, status, created_at')
+      .select('id, stripe_event_id, type, amount_cents, currency, status, created_at, reviewed_by, reviewed_at')
       .eq('user_id', id)
       .order('created_at', { ascending: false })
       .limit(30),

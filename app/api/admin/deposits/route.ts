@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('payment_events')
     .select(
-      `id, stripe_event_id, type, amount_cents, currency, status, created_at, user_id,
+      `id, stripe_event_id, type, amount_cents, currency, status, created_at, user_id, reviewed_by, reviewed_at,
        profiles(id, full_name, email, eth_balance, is_active)`,
       { count: 'exact' }
     )

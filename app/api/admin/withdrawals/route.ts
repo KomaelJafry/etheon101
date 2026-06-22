@@ -66,9 +66,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'id and status required' }, { status: 400 })
   }
 
-  const VALID = ['completed', 'failed']
+  // approved = admin has reviewed and authorised payout
+  // completed = physically paid out
+  // failed = rejected — ETH is refunded to customer
+  const VALID = ['approved', 'completed', 'failed']
   if (!VALID.includes(body.status)) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    return NextResponse.json({ error: `status must be one of: ${VALID.join(', ')}` }, { status: 400 })
   }
 
   const supabase = await createServiceClient()
@@ -84,8 +87,26 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Withdrawal not found' }, { status: 404 })
   }
 
-  if (existing.status !== 'pending') {
-    return NextResponse.json({ error: 'Withdrawal already actioned', current: existing.status }, { status: 409 })
+  // Terminal guard — completed and failed cannot be changed again
+  const TERMINAL = new Set(['completed', 'failed'])
+  if (TERMINAL.has(existing.status)) {
+    return NextResponse.json({ error: `Withdrawal is already ${existing.status} and cannot be changed.` }, { status: 409 })
+  }
+
+  // Transition rules:
+  // pending  → approved  ✓
+  // pending  → failed    ✓
+  // approved → completed ✓
+  // approved → failed    ✓
+  // (completed/failed are terminal — blocked above)
+  const allowed: Record<string, string[]> = {
+    pending:  ['approved', 'failed'],
+    approved: ['completed', 'failed'],
+  }
+  if (!allowed[existing.status]?.includes(body.status)) {
+    return NextResponse.json({
+      error: `Cannot transition from ${existing.status} to ${body.status}.`,
+    }, { status: 400 })
   }
 
   const { error: updErr } = await supabase
@@ -95,14 +116,32 @@ export async function PATCH(req: NextRequest) {
 
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
 
+  // Refund ETH when rejecting — reverse the balance hold taken at submission
+  let refundApplied = false
+  if (body.status === 'failed') {
+    const amountEth = Math.abs(existing.amount_eth ?? 0)
+    if (amountEth > 0) {
+      const { error: refundErr } = await supabase.rpc('increment_eth_balance', {
+        user_id: existing.user_id,
+        delta: amountEth,
+      })
+      if (refundErr) {
+        console.error('[admin/withdrawals] Failed to refund ETH balance on rejection', refundErr, existing.id)
+        // Non-fatal: status already updated, log the issue
+      } else {
+        refundApplied = true
+      }
+    }
+  }
+
   await logAudit({
     adminId:     user!.id,
     action:      `withdrawal_${body.status}`,
     targetTable: 'transactions',
     targetId:    body.id,
     oldValue:    { status: existing.status },
-    newValue:    { status: body.status, note: body.note ?? '' },
+    newValue:    { status: body.status, note: body.note ?? '', refund_applied: refundApplied },
   })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, refund_applied: refundApplied })
 }

@@ -20,9 +20,10 @@ interface Withdrawal {
 
 const STATUS_TABS = [
   { key: 'pending',   label: 'Pending',   color: '#FFB55C' },
-  { key: 'completed', label: 'Paid',       color: '#16D98A' },
-  { key: 'failed',    label: 'Rejected',   color: '#FF6B8A' },
-  { key: 'all',       label: 'All',        color: '#9b7bff' },
+  { key: 'approved',  label: 'Approved',  color: '#6E8BFF' },
+  { key: 'completed', label: 'Paid',      color: '#16D98A' },
+  { key: 'failed',    label: 'Rejected',  color: '#FF6B8A' },
+  { key: 'all',       label: 'All',       color: '#9b7bff' },
 ];
 
 function fmtDateTime(d: string) {
@@ -43,6 +44,7 @@ function initials(name: string) {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     pending:   { label: 'Pending',   color: '#FFB55C', bg: 'rgba(255,181,92,0.15)' },
+    approved:  { label: 'Approved',  color: '#6E8BFF', bg: 'rgba(110,139,255,0.15)' },
     completed: { label: 'Paid',      color: '#16D98A', bg: 'rgba(22,217,138,0.14)' },
     failed:    { label: 'Rejected',  color: '#FF6B8A', bg: 'rgba(255,107,138,0.14)' },
   };
@@ -54,24 +56,38 @@ function StatusBadge({ status }: { status: string }) {
 function ActionDrawer({ w, onClose, onAction }: {
   w: Withdrawal;
   onClose: () => void;
-  onAction: (id: string, status: 'completed' | 'failed', note: string) => Promise<void>;
+  onAction: (id: string, status: 'approved' | 'completed' | 'failed', note: string) => Promise<{ refund_applied?: boolean }>;
 }) {
-  const [confirming, setConfirming] = useState<'completed' | 'failed' | null>(null);
+  const [confirming, setConfirming] = useState<'approved' | 'completed' | 'failed' | null>(null);
   const [note, setNote]             = useState('');
   const [noteErr, setNoteErr]       = useState('');
   const [busy, setBusy]             = useState(false);
+  const [lastResult, setLastResult] = useState<{ refund_applied?: boolean } | null>(null);
 
   const isPending  = w.status === 'pending';
-  const isTerminal = w.status !== 'pending';
+  const isApproved = w.status === 'approved';
+  const isTerminal = w.status === 'completed' || w.status === 'failed';
 
   async function confirm() {
     if (!confirming) return;
     if (!note.trim()) { setNoteErr('An admin note is required.'); return; }
     setBusy(true);
-    await onAction(w.id, confirming, note);
+    const result = await onAction(w.id, confirming, note);
+    setLastResult(result);
     setBusy(false);
     onClose();
   }
+
+  const confirmColor: Record<string, string> = {
+    approved:  '#6E8BFF',
+    completed: '#16D98A',
+    failed:    '#FF6B8A',
+  };
+  const confirmLabel: Record<string, string> = {
+    approved:  'Approve withdrawal',
+    completed: 'Confirm paid',
+    failed:    'Reject & refund ETH',
+  };
 
   return (
     <>
@@ -86,15 +102,42 @@ function ActionDrawer({ w, onClose, onAction }: {
             <Icon name="close" size={18} color="#C5C1D6" />
           </button>
         </div>
+
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {/* Amount */}
           <div style={{ borderRadius: '18px', padding: '20px 22px', background: 'linear-gradient(135deg,rgba(110,139,255,0.14),rgba(155,123,255,0.08))', border: '1px solid rgba(110,139,255,0.25)', marginBottom: '20px' }}>
             <div style={{ fontSize: '12px', color: '#8A8699', marginBottom: '4px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Withdrawal Amount</div>
-            <div style={{ fontFamily: "'Space Grotesk'", fontSize: '32px', fontWeight: 700, color: '#F4F3FA' }}>{w.amount_eth} ETH</div>
+            <div style={{ fontFamily: "'Space Grotesk'", fontSize: '32px', fontWeight: 700, color: '#F4F3FA' }}>{Math.abs(w.amount_eth)} ETH</div>
             {w.amount_usd && <div style={{ fontSize: '13px', color: '#8A8699', marginTop: '4px' }}>≈ £{w.amount_usd.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</div>}
             <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
               <StatusBadge status={w.status} />
               <span style={{ fontSize: '12px', color: '#6F6B82' }}>{fmtDateTime(w.created_at)} · {depositAge(w.created_at)}</span>
+            </div>
+          </div>
+
+          {/* Workflow guide */}
+          <div style={{ borderRadius: '14px', padding: '14px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: '16px' }}>
+            <div style={{ fontSize: '11px', color: '#6F6B82', marginBottom: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Workflow</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+              {['Pending', 'Approved', 'Paid'].map((step, i, arr) => (
+                <span key={step} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    padding: '3px 10px', borderRadius: '999px', fontWeight: 700,
+                    background: w.status === step.toLowerCase() ? 'rgba(124,92,255,0.2)' : 'rgba(255,255,255,0.05)',
+                    color: w.status === step.toLowerCase() ? '#C9BBFF' :
+                           w.status === 'failed' ? '#FF6B8A' :
+                           (i < ['pending', 'approved', 'completed'].indexOf(w.status)) ? '#16D98A' : '#6F6B82',
+                    border: w.status === step.toLowerCase() ? '1px solid rgba(124,92,255,0.35)' : '1px solid transparent',
+                  }}>{step}</span>
+                  {i < arr.length - 1 && <Icon name="chevron_right" size={14} color="#3A3750" />}
+                </span>
+              ))}
+              {w.status === 'failed' && (
+                <>
+                  <Icon name="chevron_right" size={14} color="#3A3750" />
+                  <span style={{ padding: '3px 10px', borderRadius: '999px', fontWeight: 700, background: 'rgba(255,107,138,0.15)', color: '#FF6B8A', border: '1px solid rgba(255,107,138,0.3)' }}>Rejected</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -117,7 +160,7 @@ function ActionDrawer({ w, onClose, onAction }: {
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#C9BBFF' }}>{(w.profiles.eth_balance ?? 0).toFixed(4)} ETH</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#6F6B82', marginBottom: '2px' }}>Verification Status</div>
+                  <div style={{ fontSize: '11px', color: '#6F6B82', marginBottom: '2px' }}>Account Status</div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: w.profiles.is_active ? '#16D98A' : '#FF6B8A' }}>{w.profiles.is_active ? 'Active' : 'Inactive'}</div>
                 </div>
               </div>
@@ -140,25 +183,53 @@ function ActionDrawer({ w, onClose, onAction }: {
             </div>
           )}
 
+          {/* Terminal notice */}
           {isTerminal && (
             <div style={{ borderRadius: '14px', padding: '14px 16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
               <Icon name="lock" size={16} color="#8A8699" style={{ marginTop: '2px', flexShrink: 0 }} />
               <div style={{ fontSize: '13px', color: '#8A8699', lineHeight: 1.5 }}>
-                This withdrawal has status <strong style={{ color: '#E9E7F2' }}>{w.status}</strong> and cannot be actioned again.
+                This withdrawal has a terminal status of <strong style={{ color: '#E9E7F2' }}>{w.status}</strong> and cannot be actioned again.
+                {w.status === 'failed' && <span style={{ display: 'block', marginTop: '4px', color: '#16D98A' }}>✓ Customer ETH balance was refunded.</span>}
               </div>
             </div>
           )}
 
-          {confirming && (
-            <div style={{ borderRadius: '16px', padding: '18px', background: confirming === 'completed' ? 'rgba(22,217,138,0.07)' : 'rgba(255,107,138,0.07)', border: `1px solid ${confirming === 'completed' ? 'rgba(22,217,138,0.3)' : 'rgba(255,107,138,0.3)'}`, marginTop: '16px' }}>
-              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: confirming === 'completed' ? '#16D98A' : '#FF6B8A' }}>
-                Confirm: Mark as {confirming === 'completed' ? 'Paid' : 'Rejected'}
+          {/* Refund notice for approved state */}
+          {isApproved && (
+            <div style={{ borderRadius: '14px', padding: '14px 16px', background: 'rgba(110,139,255,0.08)', border: '1px solid rgba(110,139,255,0.25)', display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <Icon name="info" size={16} color="#6E8BFF" style={{ marginTop: '2px', flexShrink: 0 }} />
+              <div style={{ fontSize: '13px', color: '#9AABDF', lineHeight: 1.5 }}>
+                This withdrawal is approved and ready for payout. Send {Math.abs(w.amount_eth)} ETH to the customer&apos;s wallet, then mark as Paid. ETH balance was already held at submission.
               </div>
+            </div>
+          )}
+
+          {lastResult?.refund_applied && (
+            <div style={{ borderRadius: '14px', padding: '12px 14px', background: 'rgba(22,217,138,0.08)', border: '1px solid rgba(22,217,138,0.3)', fontSize: '13px', color: '#16D98A', marginBottom: '14px' }}>
+              ✓ ETH balance refunded to customer.
+            </div>
+          )}
+
+          {/* Confirm panel */}
+          {confirming && (
+            <div style={{ borderRadius: '16px', padding: '18px', background: `${confirming === 'failed' ? 'rgba(255,107,138,0.07)' : confirming === 'completed' ? 'rgba(22,217,138,0.07)' : 'rgba(110,139,255,0.07)'}`, border: `1px solid ${confirming === 'failed' ? 'rgba(255,107,138,0.3)' : confirming === 'completed' ? 'rgba(22,217,138,0.3)' : 'rgba(110,139,255,0.3)'}`, marginTop: '16px' }}>
+              <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: confirmColor[confirming] }}>
+                Confirm: {confirmLabel[confirming]}
+              </div>
+              {confirming === 'failed' && (
+                <div style={{ fontSize: '13px', color: '#B6B3D9', marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', background: 'rgba(22,217,138,0.06)', border: '1px solid rgba(22,217,138,0.2)' }}>
+                  ✓ Customer ETH balance will be automatically refunded when you confirm.
+                </div>
+              )}
               <textarea value={note} onChange={e => { setNote(e.target.value); setNoteErr(''); }} placeholder="Admin note (required)…" rows={3} style={{ width: '100%', borderRadius: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: `1px solid ${noteErr ? 'rgba(255,107,138,0.5)' : 'rgba(255,255,255,0.12)'}`, color: '#F4F3FA', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: '8px' }} />
               {noteErr && <div style={{ fontSize: '12px', color: '#FF6B8A', marginBottom: '10px' }}>{noteErr}</div>}
               <div style={{ display: 'flex', gap: '8px' }}>
-                <RippleButton variant={confirming === 'completed' ? 'purple' : 'danger'} onClick={confirm} disabled={busy} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', borderRadius: '12px', fontWeight: 700, fontSize: '13.5px' }}>
-                  {busy ? 'Processing…' : `Confirm ${confirming === 'completed' ? 'Paid' : 'Rejected'}`}
+                <RippleButton
+                  variant={confirming === 'failed' ? 'danger' : 'purple'}
+                  onClick={confirm}
+                  disabled={busy}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '40px', borderRadius: '12px', fontWeight: 700, fontSize: '13.5px' }}>
+                  {busy ? 'Processing…' : confirmLabel[confirming]}
                 </RippleButton>
                 <RippleButton variant="ghost" onClick={() => { setConfirming(null); setNote(''); }} style={{ height: '40px', padding: '0 14px', borderRadius: '12px', fontWeight: 700 }}>Cancel</RippleButton>
               </div>
@@ -166,12 +237,20 @@ function ActionDrawer({ w, onClose, onAction }: {
           )}
         </div>
 
-        {isPending && !confirming && (
-          <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: '10px' }}>
-            <RippleButton variant="purple" onClick={() => setConfirming('completed')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '44px', borderRadius: '13px', fontWeight: 700, fontSize: '14px' }}>
-              <Icon name="check_circle" size={17} color="#fff" /> Mark Paid
-            </RippleButton>
-            <RippleButton variant="danger" onClick={() => setConfirming('failed')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '44px', borderRadius: '13px', fontWeight: 700, fontSize: '14px' }}>
+        {/* Footer actions */}
+        {!isTerminal && !confirming && (
+          <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {isPending && (
+              <RippleButton variant="purple" onClick={() => setConfirming('approved')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '44px', borderRadius: '13px', fontWeight: 700, fontSize: '14px', minWidth: '120px' }}>
+                <Icon name="thumb_up" size={17} color="#fff" /> Approve
+              </RippleButton>
+            )}
+            {isApproved && (
+              <RippleButton variant="purple" onClick={() => setConfirming('completed')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '44px', borderRadius: '13px', fontWeight: 700, fontSize: '14px', minWidth: '120px', background: '#16D98A' }}>
+                <Icon name="check_circle" size={17} color="#fff" /> Mark Paid
+              </RippleButton>
+            )}
+            <RippleButton variant="danger" onClick={() => setConfirming('failed')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '44px', borderRadius: '13px', fontWeight: 700, fontSize: '14px', minWidth: '120px' }}>
               <Icon name="cancel" size={17} color="#FF8DA3" /> Reject
             </RippleButton>
           </div>
@@ -218,14 +297,19 @@ export default function AdminWithdrawalsPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
-  async function handleAction(id: string, status: 'completed' | 'failed', note: string) {
+  async function handleAction(id: string, status: 'approved' | 'completed' | 'failed', note: string): Promise<{ refund_applied?: boolean }> {
     const res = await fetch('/api/admin/withdrawals', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status, note }),
     });
-    if (!res.ok) throw new Error('Failed');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(err.error ?? 'Failed');
+    }
+    const json = await res.json() as { refund_applied?: boolean };
     await load();
+    return json;
   }
 
   if (accessDenied) return (
@@ -284,7 +368,8 @@ export default function AdminWithdrawalsPage() {
           ) : withdrawals.map((w, i) => {
             const p = w.profiles;
             return (
-              <div key={w.id} onClick={() => setSelected(w)} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 1.2fr 100px', gap: '12px', padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', alignItems: 'center', cursor: 'pointer' }}>
+              <div key={w.id} onClick={() => setSelected(w)}
+                style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 1.2fr 100px', gap: '12px', padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', background: w.status === 'pending' ? 'rgba(255,181,92,0.03)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', alignItems: 'center', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                   <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'linear-gradient(135deg,#3a3550,#222031)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '11px', color: '#C9BBFF', flexShrink: 0 }}>{initials(p?.full_name ?? '?')}</div>
                   <div style={{ minWidth: 0 }}>
@@ -292,7 +377,7 @@ export default function AdminWithdrawalsPage() {
                     <div style={{ fontSize: '11px', color: '#7E7A8F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.email || '—'}</div>
                   </div>
                 </div>
-                <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '14px', color: '#F4F3FA' }}>{w.amount_eth} ETH</div>
+                <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '14px', color: '#F4F3FA' }}>{Math.abs(w.amount_eth)} ETH</div>
                 <div style={{ fontSize: '12px', color: '#7E7A8F' }}>{fmtDateTime(w.created_at)}</div>
                 <div style={{ fontSize: '12px', color: w.status === 'pending' ? '#FFB55C' : '#7E7A8F', fontWeight: w.status === 'pending' ? 700 : 400 }}>{depositAge(w.created_at)}</div>
                 <StatusBadge status={w.status} />

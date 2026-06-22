@@ -9,7 +9,6 @@ const schema = z.object({
 
 const DEFAULT_WITHDRAWAL_UNLOCK_USD = 1000;
 
-/** Fetch current ETH/USD price from CoinGecko free API. Returns null on failure. */
 async function fetchEthPriceUsd(): Promise<number | null> {
   try {
     const controller = new AbortController();
@@ -40,10 +39,9 @@ export async function POST(req: Request) {
   const { amount_eth, wallet_address } = parsed.data;
   const service = await createServiceClient();
 
-  // Fetch profile — need balance, subscription status, and registered wallet address
   const { data: profile } = await service
     .from('profiles')
-    .select('eth_balance, is_active, eth_wallet_address')
+    .select('eth_balance, gbp_balance, is_active, eth_wallet_address, admin_withdrawal_override')
     .eq('id', user.id)
     .single();
 
@@ -54,7 +52,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'An active plan is required to make withdrawals.' }, { status: 403 });
   }
 
-  // Rule 2: wallet address must match the registered address on the account
+  // Rule 2: admin override check
+  const override = profile.admin_withdrawal_override as string | null;
+  if (override === 'locked') {
+    return NextResponse.json({ error: 'Your withdrawal access has been restricted. Please contact support.' }, { status: 403 });
+  }
+  if (override === 'under_review') {
+    return NextResponse.json({ error: 'Your withdrawal access is currently under review. Please contact support.' }, { status: 403 });
+  }
+
+  // Rule 3: wallet address must match registered address
   if (!profile.eth_wallet_address) {
     return NextResponse.json({
       error: 'No withdrawal address configured. Add your wallet address in Settings first.',
@@ -66,40 +73,64 @@ export async function POST(req: Request) {
     }, { status: 400 });
   }
 
-  // Rule 3: total account balance must meet the USD unlock threshold
-  // Read admin-configured threshold; default is $1,000 USD.
-  const { data: thresholdRow } = await service
-    .from('ui_content')
-    .select('value')
-    .eq('page', 'mining')
-    .eq('element_key', 'withdrawal_unlock_balance_usd')
+  // Rule 4: total account balance (ETH + GBP) must meet unlock threshold
+  // Skip threshold check if admin has explicitly unlocked
+  if (override !== 'unlocked') {
+    const { data: thresholdRow } = await service
+      .from('ui_content')
+      .select('value')
+      .eq('page', 'mining')
+      .eq('element_key', 'withdrawal_unlock_balance_usd')
+      .maybeSingle();
+
+    const thresholdUsd = thresholdRow?.value
+      ? (parseFloat(thresholdRow.value) || DEFAULT_WITHDRAWAL_UNLOCK_USD)
+      : DEFAULT_WITHDRAWAL_UNLOCK_USD;
+
+    const ethPrice = await fetchEthPriceUsd();
+    if (ethPrice === null) {
+      return NextResponse.json({
+        error: 'Unable to verify your balance at this time. Please try again in a moment.',
+      }, { status: 503 });
+    }
+
+    // Total balance = ETH value + GBP deposits
+    const totalBalanceGbp = (profile.eth_balance ?? 0) * ethPrice + (profile.gbp_balance ?? 0);
+    if (totalBalanceGbp < thresholdUsd) {
+      return NextResponse.json({
+        error: `Withdrawals unlock when your total balance reaches £${thresholdUsd.toLocaleString()}. Your current balance is £${totalBalanceGbp.toFixed(2)}.`,
+      }, { status: 403 });
+    }
+  }
+
+  // Rule 5: sufficient ETH balance for the withdrawal amount
+  if ((profile.eth_balance ?? 0) < amount_eth) {
+    return NextResponse.json({ error: 'Insufficient ETH balance.' }, { status: 400 });
+  }
+
+  // Rule 6: no existing pending or approved withdrawal (prevent duplicates)
+  const { data: existingPending } = await service
+    .from('transactions')
+    .select('id, status, created_at')
+    .eq('user_id', user.id)
+    .eq('type', 'withdrawal')
+    .in('status', ['pending', 'approved'])
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  const thresholdUsd = thresholdRow?.value
-    ? (parseFloat(thresholdRow.value) || DEFAULT_WITHDRAWAL_UNLOCK_USD)
-    : DEFAULT_WITHDRAWAL_UNLOCK_USD;
-
-  // Get current ETH price to calculate USD balance
-  const ethPrice = await fetchEthPriceUsd();
-  if (ethPrice === null) {
+  if (existingPending) {
     return NextResponse.json({
-      error: 'Unable to verify your balance at this time. Please try again in a moment.',
-    }, { status: 503 });
+      error: `You already have a withdrawal request under review (status: ${existingPending.status}). Please wait for it to be processed before submitting a new one.`,
+    }, { status: 409 });
   }
 
-  const balanceUsd = profile.eth_balance * ethPrice;
-  if (balanceUsd < thresholdUsd) {
-    return NextResponse.json({
-      error: `Withdrawals unlock when your total balance reaches £${thresholdUsd.toLocaleString()}. Your current balance is £${balanceUsd.toFixed(2)}.`,
-    }, { status: 403 });
+  // Deduct ETH balance immediately to hold funds during review
+  const { error: deductErr } = await service.rpc('increment_eth_balance', { user_id: user.id, delta: -amount_eth });
+  if (deductErr) {
+    return NextResponse.json({ error: 'Failed to hold balance. Please try again.' }, { status: 500 });
   }
 
-  // Rule 4: sufficient ETH balance for the requested withdrawal amount
-  if (profile.eth_balance < amount_eth) {
-    return NextResponse.json({ error: 'Insufficient balance.' }, { status: 400 });
-  }
-
-  // Insert withdrawal request as pending for admin review — this is not an instant payout
   const { error: insertError } = await service.from('transactions').insert({
     user_id: user.id,
     type: 'withdrawal',
@@ -108,10 +139,11 @@ export async function POST(req: Request) {
     description: `Withdrawal request to ${wallet_address} — pending admin review`,
   });
 
-  if (insertError) return NextResponse.json({ error: 'Failed to submit withdrawal request.' }, { status: 500 });
-
-  // Hold balance while request is pending to prevent duplicate requests
-  await service.rpc('increment_eth_balance', { user_id: user.id, delta: -amount_eth });
+  if (insertError) {
+    // Rollback the balance deduction
+    await service.rpc('increment_eth_balance', { user_id: user.id, delta: amount_eth });
+    return NextResponse.json({ error: 'Failed to submit withdrawal request.' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, message: 'Withdrawal request submitted for review.' });
 }

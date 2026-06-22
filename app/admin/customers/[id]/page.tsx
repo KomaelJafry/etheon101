@@ -851,7 +851,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         {/* ── TAB: Deposits ─────────────────────────────────── */}
         {activeTab === 'deposits' && (
           <Card>
-            <SectionTitle icon="payments" title="Stripe deposit payments" subtitle="Payments via Stripe checkout that are pending admin review." />
+            <SectionTitle icon="payments" title="Stripe deposit payments" subtitle="All Stripe checkout payments for this customer." />
             {deposits.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: '#6F6B82', fontSize: '13px' }}>
                 <Icon name="payments" size={32} color="#3A374F" style={{ marginBottom: '8px' }} />
@@ -859,61 +859,62 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {deposits.map(dep => {
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {deposits.map((dep: any) => {
                   const isPending = dep.status === 'pending_review';
+                  const isCredited = dep.status === 'credited';
+                  const isRejected = dep.status === 'rejected';
+                  const isRefunded = dep.status === 'refunded';
                   const amountGbp = dep.amount_cents ? (dep.amount_cents / 100).toFixed(2) : '—';
-                  const statusColor = isPending ? '#FFB55C' : dep.status === 'credited' ? '#16D98A' : '#8A8699';
-                  const statusBg = isPending ? 'rgba(255,181,92,0.12)' : dep.status === 'credited' ? 'rgba(22,217,138,0.12)' : 'rgba(255,255,255,0.06)';
+                  const statusMap: Record<string, { label: string; color: string; bg: string }> = {
+                    pending_review: { label: 'Pending review', color: '#FFB55C', bg: 'rgba(255,181,92,0.14)' },
+                    credited:       { label: 'Credited',       color: '#16D98A', bg: 'rgba(22,217,138,0.14)' },
+                    rejected:       { label: 'Rejected',       color: '#FF6B8A', bg: 'rgba(255,107,138,0.14)' },
+                    refunded:       { label: 'Refunded',       color: '#8A8699', bg: 'rgba(138,134,153,0.14)' },
+                  };
+                  const badge = statusMap[dep.status] ?? { label: String(dep.status), color: '#8A8699', bg: 'rgba(138,134,153,0.14)' };
+                  const rowBg = isPending ? 'rgba(255,181,92,0.05)' : isCredited ? 'rgba(22,217,138,0.03)' : isRejected ? 'rgba(255,107,138,0.03)' : 'rgba(255,255,255,0.025)';
+                  const rowBorder = isPending ? 'rgba(255,181,92,0.22)' : isCredited ? 'rgba(22,217,138,0.15)' : isRejected ? 'rgba(255,107,138,0.15)' : 'rgba(255,255,255,0.07)';
                   return (
-                    <div key={dep.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '15px', background: isPending ? 'rgba(255,181,92,0.05)' : 'rgba(255,255,255,0.025)', border: `1px solid ${isPending ? 'rgba(255,181,92,0.22)' : 'rgba(255,255,255,0.07)'}` }}>
-                      <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: isPending ? 'rgba(255,181,92,0.14)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Icon name="credit_card" size={20} color={isPending ? '#FFB55C' : '#6F6B82'} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>
-                          £{amountGbp} {(dep.currency ?? 'gbp').toUpperCase()}
+                    <div key={dep.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px 16px', borderRadius: '15px', background: rowBg, border: `1px solid ${rowBorder}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: isPending ? 'rgba(255,181,92,0.14)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Icon name="credit_card" size={20} color={isPending ? '#FFB55C' : '#6F6B82'} />
                         </div>
-                        <div style={{ fontSize: '11.5px', color: '#6F6B82', marginTop: '2px' }}>
-                          {fmtDate(dep.created_at)} · <code style={{ fontFamily: 'monospace', fontSize: '11px', color: '#4A4763' }}>{dep.stripe_event_id?.slice(0, 24)}…</code>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#E9E7F2' }}>
+                            £{amountGbp} {(dep.currency ?? 'gbp').toUpperCase()}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#6F6B82', marginTop: '2px' }}>
+                            {fmtDate(dep.created_at)} · <code style={{ fontFamily: 'monospace', fontSize: '11px', color: '#4A4763' }}>{dep.stripe_event_id?.slice(0, 24)}…</code>
+                          </div>
                         </div>
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: badge.color, background: badge.bg, padding: '4px 10px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
+                          {badge.label}
+                        </span>
+                        {isPending && (
+                          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                            <button
+                              disabled={depositUpdating === dep.id}
+                              onClick={() => updateDepositStatus(dep.id, 'credited')}
+                              style={{ height: '34px', padding: '0 14px', borderRadius: '10px', cursor: depositUpdating === dep.id ? 'default' : 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12.5px', background: 'rgba(22,217,138,0.14)', border: '1px solid rgba(22,217,138,0.3)', color: '#16D98A', whiteSpace: 'nowrap', opacity: depositUpdating === dep.id ? 0.5 : 1 }}
+                            >
+                              {depositUpdating === dep.id ? '…' : `Credit £${amountGbp}`}
+                            </button>
+                            <button
+                              disabled={depositUpdating === dep.id}
+                              onClick={() => updateDepositStatus(dep.id, 'rejected')}
+                              style={{ height: '34px', padding: '0 12px', borderRadius: '10px', cursor: depositUpdating === dep.id ? 'default' : 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12px', background: 'rgba(255,107,138,0.08)', border: '1px solid rgba(255,107,138,0.2)', color: '#FF8DA3', whiteSpace: 'nowrap', opacity: depositUpdating === dep.id ? 0.5 : 1 }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: statusColor, background: statusBg, padding: '4px 10px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
-                        {isPending ? 'Pending review' : dep.status.replace(/_/g, ' ')}
-                      </span>
-                      {isPending && (
-                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                          <button
-                            onClick={() => {
-                              setActiveTab('adjustments');
-                              setAdjForm(prev => ({
-                                ...prev,
-                                type: 'credit',
-                                amount_eth: '',
-                                reason: `Stripe deposit — £${amountGbp} (${dep.stripe_event_id})`,
-                                internal_note: `Crediting verified Stripe payment of £${amountGbp}. Event: ${dep.stripe_event_id}`,
-                                customer_note: `Your deposit of £${amountGbp} has been credited to your account.`,
-                              }));
-                            }}
-                            style={{ height: '34px', padding: '0 14px', borderRadius: '10px', cursor: 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12.5px', background: 'rgba(22,217,138,0.14)', border: '1px solid rgba(22,217,138,0.3)', color: '#16D98A', whiteSpace: 'nowrap' }}
-                          >
-                            Credit balance
-                          </button>
-                          <button
-                            disabled={depositUpdating === dep.id}
-                            onClick={() => updateDepositStatus(dep.id, 'credited')}
-                            style={{ height: '34px', padding: '0 12px', borderRadius: '10px', cursor: depositUpdating === dep.id ? 'default' : 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12px', background: 'rgba(22,217,138,0.08)', border: '1px solid rgba(22,217,138,0.2)', color: '#16D98A', whiteSpace: 'nowrap', opacity: depositUpdating === dep.id ? 0.5 : 1 }}
-                            title="Mark this deposit as credited without going through Adjustments"
-                          >
-                            Mark credited
-                          </button>
-                          <button
-                            disabled={depositUpdating === dep.id}
-                            onClick={() => updateDepositStatus(dep.id, 'rejected')}
-                            style={{ height: '34px', padding: '0 12px', borderRadius: '10px', cursor: depositUpdating === dep.id ? 'default' : 'pointer', fontFamily: "'Manrope'", fontWeight: 700, fontSize: '12px', background: 'rgba(255,107,138,0.08)', border: '1px solid rgba(255,107,138,0.2)', color: '#FF8DA3', whiteSpace: 'nowrap', opacity: depositUpdating === dep.id ? 0.5 : 1 }}
-                            title="Mark this deposit as rejected"
-                          >
-                            Reject
-                          </button>
+                      {(isCredited || isRejected || isRefunded) && dep.reviewed_by && (
+                        <div style={{ fontSize: '11.5px', color: '#6F6B82', paddingLeft: '56px', display: 'flex', gap: '16px' }}>
+                          <span>Reviewed by: <span style={{ color: '#9A96AA' }}>secondabenjamin.2000@gmail.com</span></span>
+                          {dep.reviewed_at && <span>at: <span style={{ color: '#9A96AA' }}>{fmtDate(dep.reviewed_at)}</span></span>}
                         </div>
                       )}
                     </div>
@@ -921,9 +922,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 })}
               </div>
             )}
-            <div style={{ marginTop: '18px', padding: '13px 15px', borderRadius: '13px', background: 'rgba(255,181,92,0.07)', border: '1px solid rgba(255,181,92,0.18)', fontSize: '12.5px', color: '#C5C1D6', lineHeight: 1.6 }}>
-              <Icon name="info" size={15} color="#FFB55C" style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-              Clicking &ldquo;Credit balance&rdquo; pre-fills the Adjustments tab with the deposit details. You still need to review and confirm the adjustment there.
+            <div style={{ marginTop: '18px', padding: '13px 15px', borderRadius: '13px', background: 'rgba(22,217,138,0.05)', border: '1px solid rgba(22,217,138,0.15)', fontSize: '12.5px', color: '#C5C1D6', lineHeight: 1.6 }}>
+              <Icon name="info" size={15} color="#16D98A" style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+              Crediting a deposit immediately adds the GBP amount to the customer&apos;s balance and creates a transaction record. This action cannot be undone. Double-credit is blocked at the API level.
             </div>
           </Card>
         )}

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../AppContext';
 
 function Skeleton({ h = 20, w = '100%' }: { h?: number; w?: string }) {
@@ -11,6 +11,21 @@ import Link from 'next/link';
 import { useContent } from '../../../hooks/useContent';
 import UnlockProgressCard from '../../../components/UnlockProgressCard';
 
+interface WithdrawalTxn {
+  id: string;
+  amount_eth: number;
+  status: string;
+  description: string | null;
+  created_at: string;
+}
+
+const WD_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  pending:   { label: 'Pending review', color: '#FFB55C', bg: 'rgba(255,181,92,0.14)' },
+  approved:  { label: 'Approved',       color: '#6E8BFF', bg: 'rgba(110,139,255,0.14)' },
+  completed: { label: 'Paid',           color: '#16D98A', bg: 'rgba(22,217,138,0.14)' },
+  failed:    { label: 'Rejected',       color: '#FF6B8A', bg: 'rgba(255,107,138,0.14)' },
+};
+
 const MIN_WITHDRAWAL = 0.01;
 const NETWORK_FEE = 0.0005;
 
@@ -18,6 +33,26 @@ export default function WithdrawalsPage() {
   const { profile, loading, ethPrice } = useApp();
   const { get } = useContent(['withdrawal', 'mining']);
   const available = profile?.eth_balance ?? 0;
+
+  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalTxn[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  const loadHistory = useCallback(async () => {
+    if (!profile) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/user/transactions?type=withdrawal&limit=10');
+      if (res.ok) {
+        const json = await res.json();
+        setWithdrawalHistory(json.transactions ?? []);
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [profile]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
@@ -65,8 +100,9 @@ export default function WithdrawalsPage() {
     });
     const json = await res.json();
     if (res.ok) {
-      setResult({ type: 'success', text: 'Withdrawal submitted. Your ETH will arrive within 24-48 hours.' });
+      setResult({ type: 'success', text: 'Withdrawal submitted for admin review. You will be notified when it is processed.' });
       setAmount('0.00');
+      loadHistory();
     } else {
       setResult({ type: 'error', text: json.error || 'Something went wrong. Please try again.' });
     }
@@ -238,14 +274,42 @@ export default function WithdrawalsPage() {
           </div>
         </div>
 
-        {/* Recent withdrawals — populated from real transaction history on /transactions */}
+        {/* Recent withdrawals */}
         <div style={{ borderRadius: '26px', padding: '22px 24px', background: 'linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="sg" style={{ fontWeight: 600, fontSize: '16px', marginBottom: '14px' }}>Recent withdrawals</div>
-          <div style={{ textAlign: 'center', padding: '24px 0', color: '#6F6B82', fontSize: '13px' }}>
-            <Icon name="north_east" size={28} color="#3A374F" style={{ marginBottom: '8px' }} />
-            <div>No withdrawals yet</div>
-            <div style={{ fontSize: '12px', marginTop: '4px', color: '#4A4760' }}>Completed withdrawals will appear here.</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div className="sg" style={{ fontWeight: 600, fontSize: '16px' }}>Recent withdrawals</div>
+            <Link href="/transactions" style={{ fontSize: '12px', color: '#9b7bff', fontWeight: 700, textDecoration: 'none' }}>View all →</Link>
           </div>
+          {historyLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[1,2].map(i => <Skeleton key={i} h={48} />)}
+            </div>
+          ) : withdrawalHistory.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px 0', color: '#6F6B82', fontSize: '13px' }}>
+              <Icon name="north_east" size={28} color="#3A374F" style={{ marginBottom: '8px' }} />
+              <div>No withdrawals yet</div>
+              <div style={{ fontSize: '12px', marginTop: '4px', color: '#4A4760' }}>Submitted withdrawals will appear here.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {withdrawalHistory.map(w => {
+                const s = WD_STATUS[w.status] ?? { label: w.status, color: '#8A8699', bg: 'rgba(255,255,255,0.07)' };
+                const date = new Date(w.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                return (
+                  <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '11px', background: 'rgba(255,107,138,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon name="north_east" size={19} color="#FF6B8A" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 700 }}>{Math.abs(w.amount_eth).toFixed(6)} ETH</div>
+                      <div style={{ fontSize: '11.5px', color: '#7E7A8F', marginTop: '2px' }}>{date}</div>
+                    </div>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: s.color, background: s.bg, padding: '4px 10px', borderRadius: '999px', whiteSpace: 'nowrap' }}>{s.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
       </div>

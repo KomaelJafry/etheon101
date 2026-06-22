@@ -16,6 +16,9 @@ export async function GET() {
     pendingChecksRes,
     recentSignupsRes,
     recentActionsRes,
+    creditedTodayRes,
+    rejectedTodayRes,
+    totalReviewedRes,
   ] = await Promise.all([
     // Total customers
     supabase
@@ -63,6 +66,26 @@ export async function GET() {
       .select('id, action, target_table, target_id, created_at, admin_id')
       .order('created_at', { ascending: false })
       .limit(10),
+
+    // Credited today
+    supabase
+      .from('payment_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'credited')
+      .gte('reviewed_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+
+    // Rejected today
+    supabase
+      .from('payment_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'rejected')
+      .gte('reviewed_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+
+    // Total deposits reviewed (all time)
+    supabase
+      .from('payment_events')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['credited', 'rejected', 'refunded']),
   ])
 
   // Total ETH
@@ -73,11 +96,14 @@ export async function GET() {
 
   return NextResponse.json({
     stats: {
-      total_customers:       customersRes.count ?? 0,
-      active_subscriptions:  subscriptionsRes.count ?? 0,
-      pending_deposits:      pendingDepositsRes.count ?? 0,
-      total_eth_held:        totalEth,
-      pending_checks:        pendingChecksRes.count ?? 0,
+      total_customers:         customersRes.count ?? 0,
+      active_subscriptions:    subscriptionsRes.count ?? 0,
+      pending_deposits:        pendingDepositsRes.count ?? 0,
+      total_eth_held:          totalEth,
+      pending_checks:          pendingChecksRes.count ?? 0,
+      credited_today:          creditedTodayRes.count ?? 0,
+      rejected_today:          rejectedTodayRes.count ?? 0,
+      total_deposits_reviewed: totalReviewedRes.count ?? 0,
     },
     pending_deposits: pendingDepositsRes.data ?? [],
     recent_signups:   recentSignupsRes.data ?? [],

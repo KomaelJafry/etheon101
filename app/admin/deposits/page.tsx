@@ -15,6 +15,8 @@ interface Deposit {
   status: string;
   created_at: string;
   user_id: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   profiles: { id: string; full_name: string; email: string; eth_balance: number; is_active: boolean } | null;
 }
 
@@ -155,6 +157,22 @@ function ReviewDrawer({ deposit, onClose, onAction }: {
             </div>
           )}
 
+          {/* Reviewed by / at */}
+          {isTerminal && deposit.reviewed_by && (
+            <div style={{ borderRadius: '14px', padding: '14px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: '#6F6B82', marginBottom: '3px' }}>Reviewed by</div>
+                <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#C9BBFF' }}>secondabenjamin.2000@gmail.com</div>
+              </div>
+              {deposit.reviewed_at && (
+                <div>
+                  <div style={{ fontSize: '11px', color: '#6F6B82', marginBottom: '3px' }}>Reviewed at</div>
+                  <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#C9BBFF' }}>{fmtDateTime(deposit.reviewed_at)}</div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Terminal status notice */}
           {isTerminal && (
             <div style={{ borderRadius: '14px', padding: '14px 16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
@@ -173,7 +191,7 @@ function ReviewDrawer({ deposit, onClose, onAction }: {
               </div>
               <div style={{ fontSize: '13px', color: '#B6B3D9', marginBottom: '14px' }}>
                 {confirming === 'credited'
-                  ? 'This will NOT automatically credit the customer balance. Go to the customer\'s Adjustments tab to credit their balance separately.'
+                  ? `This will immediately credit £${(deposit.amount_cents / 100).toFixed(2)} to the customer's GBP balance and create a transaction record. This action cannot be undone.`
                   : `You are about to mark this deposit as ${confirming}. This action cannot be undone.`}
               </div>
               <div style={{ marginBottom: '12px' }}>
@@ -377,7 +395,10 @@ export default function AdminDepositsPage() {
                 {/* Amount */}
                 <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '14px', color: '#F4F3FA' }}>{fmtGbp(dep.amount_cents)}</div>
                 {/* Date */}
-                <div style={{ fontSize: '12px', color: '#7E7A8F' }}>{fmtDateTime(dep.created_at)}</div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#7E7A8F' }}>{fmtDateTime(dep.created_at)}</div>
+                  {dep.reviewed_at && <div style={{ fontSize: '11px', color: '#4A4763', marginTop: '2px' }}>Reviewed {fmtDateTime(dep.reviewed_at)}</div>}
+                </div>
                 {/* Age */}
                 <div style={{ fontSize: '12px', color: dep.status === 'pending_review' ? '#FFB55C' : '#7E7A8F', fontWeight: dep.status === 'pending_review' ? 700 : 400 }}>{depositAge(dep.created_at)}</div>
                 {/* Status */}
