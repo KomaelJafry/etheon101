@@ -409,8 +409,8 @@ export default function DashboardPage() {
           body={get('mining','mining_unlock_body',`Reach £${miningThreshold} balance and subscribe to start earning daily rewards.`)}
           currentUsd={balanceUsd}
           targetUsd={miningThreshold}
-          ctaLabel={!isSubscribed ? 'Subscribe to unlock' : get('mining','mining_unlock_cta_label','Add funds to unlock')}
-          ctaHref={!isSubscribed ? '#' : depositHref}
+          ctaLabel={!isSubscribed ? 'Subscribe to unlock' : miningUnlocked ? 'Go to mining' : get('mining','mining_unlock_cta_label','Add funds to unlock')}
+          ctaHref={!isSubscribed ? '#' : miningUnlocked ? '/mining' : depositHref}
           onCtaClick={!isSubscribed ? handleSubscribe : undefined}
           ctaLoading={!isSubscribed ? subLoading : undefined}
           ctaError={!isSubscribed ? subError : undefined}
