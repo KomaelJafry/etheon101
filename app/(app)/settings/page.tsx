@@ -95,7 +95,7 @@ export default function SettingsPage() {
     },
   ];
 
-  const vipLabel = VIP_LABEL[Math.min(profile?.vip_tier ?? 0, 4)];
+  const vipLabel = VIP_LABEL[Math.min(Number(profile?.vip_tier ?? 0), 4)] ?? 'Standard';
 
   return (
     <div style={{ maxWidth: '760px', display: 'flex', flexDirection: 'column', gap: '20px' }}>

@@ -67,7 +67,7 @@ export default function WithdrawalsPage() {
     withdrawalUnderReview            ? true  :
     balanceUsd < withdrawThreshold;
 
-  const [amount, setAmount] = useState('0.25');
+  const [amount, setAmount] = useState('');
   const [network, setNetwork] = useState('ERC-20');
 
   const walletAddress = profile?.eth_wallet_address || '';

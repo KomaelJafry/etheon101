@@ -9,7 +9,7 @@ export async function GET() {
   const supabase = await createServiceClient()
 
   const [profileRes, checksRes, msgsRes, threshRes, subRes] = await Promise.all([
-    supabase.from('profiles').select('id, full_name, email, eth_balance, mining_status, is_active, eth_wallet_address').eq('id', user!.id).single(),
+    supabase.from('profiles').select('id, full_name, email, eth_balance, gbp_balance, mining_status, is_active, eth_wallet_address').eq('id', user!.id).single(),
     supabase.from('verification_checks').select('key, label, status, customer_note, customer_visible').eq('user_id', user!.id).eq('customer_visible', true).order('created_at'),
     supabase.from('customer_messages').select('id, title, body, type, is_read').eq('user_id', user!.id).eq('is_visible', true).order('created_at', { ascending: false }),
     supabase.from('ui_content').select('element_key, value').in('element_key', ['mining_minimum_start_balance_usd', 'withdrawal_unlock_balance_usd']),

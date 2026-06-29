@@ -9,7 +9,7 @@ import RippleButton from '../../../components/RippleButton';
 interface Check { key: string; label: string; status: 'pending' | 'complete' | 'failed' | 'not_required'; customer_note?: string; }
 interface Message { id: string; title: string; body: string; type: string; is_read: boolean; }
 interface StatusData {
-  profile: { full_name: string; email: string; eth_balance: number; mining_status: string; is_active: boolean; eth_wallet_address?: string; };
+  profile: { full_name: string; email: string; eth_balance: number; gbp_balance: number; mining_status: string; is_active: boolean; eth_wallet_address?: string; };
   subscription: { status: string; billing_period: string } | null;
   checks: Check[];
   messages: Message[];
@@ -79,7 +79,8 @@ export default function AccountStatusPage() {
   }, []);
 
   const ethBalance = data?.profile.eth_balance ?? 0;
-  const balanceUsd = ethBalance * ethPrice;
+  const gbpBalance = data?.profile.gbp_balance ?? 0;
+  const balanceUsd = ethBalance * ethPrice + gbpBalance;
   const miningThreshold = data?.config.miningThreshold ?? 100;
   const withdrawalThreshold = data?.config.withdrawalThreshold ?? 1000;
   const miningPct = Math.min(100, (balanceUsd / miningThreshold) * 100);
