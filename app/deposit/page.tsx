@@ -182,7 +182,7 @@ function DepositPageInner() {
   }
 
   // Historical column names use "usd" but values are managed as GBP going forward
-  const balanceGbp        = (profile?.eth_balance ?? 0) * ethPrice;
+  const balanceGbp        = (profile?.eth_balance ?? 0) * ethPrice + (profile?.gbp_balance ?? 0);
   const miningThreshold   = parseFloat(get('mining', 'mining_minimum_start_balance_usd', '100')) || 100;
   const withdrawThreshold = parseFloat(get('mining', 'withdrawal_unlock_balance_usd', '1000')) || 1000;
   const isSubscribed      = profile?.is_active ?? false;
