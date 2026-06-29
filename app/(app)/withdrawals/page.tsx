@@ -215,7 +215,7 @@ export default function WithdrawalsPage() {
         <RippleButton
           variant="purple"
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || (!withdrawalLocked && !withdrawalUnderReview && !btnActive)}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px',
             fontSize: '15px', color: '#fff', padding: '15px', borderRadius: '15px',

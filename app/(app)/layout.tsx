@@ -222,7 +222,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:'13px', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{profile?.full_name || 'My account'}</div>
-              <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>{VIP_LABEL[Math.min(profile?.vip_tier ?? 0, 4)]} tier</div>
+              <div style={{ fontSize:'11px', color:'#6F6B82', marginTop:'1px' }}>{VIP_LABEL[Math.min(Number(profile?.vip_tier ?? 0), 4)] ?? 'Standard'} tier</div>
             </div>
             <Icon name="settings" size={17} color="#6F6B82" />
           </div>
