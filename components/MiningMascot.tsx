@@ -9,14 +9,32 @@ interface MiningMascotProps {
   pendingRewardUsd?: string;
 }
 
-export default function MiningMascot({ state, sessionPct = 0 }: MiningMascotProps) {
-  const isActive = state === 'active';
-  const isLocked = state === 'locked';
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef   = useRef<number>(0);
-  const timeRef  = useRef(0);
+// EQ bar specs — deterministic (no Math.random at render time)
+const EQ_L = [
+  { h: 52, d: '0s',    sp: '0.55s' },
+  { h: 74, d: '0.12s', sp: '0.68s' },
+  { h: 62, d: '0.07s', sp: '0.6s'  },
+  { h: 80, d: '0.22s', sp: '0.75s' },
+  { h: 58, d: '0.15s', sp: '0.5s'  },
+];
+const EQ_R = [
+  { h: 68, d: '0.18s', sp: '0.63s' },
+  { h: 50, d: '0.05s', sp: '0.52s' },
+  { h: 80, d: '0.28s', sp: '0.72s' },
+  { h: 65, d: '0.1s',  sp: '0.58s' },
+  { h: 76, d: '0.2s',  sp: '0.66s' },
+];
 
-  // Particle canvas for active state
+export default function MiningMascot({ state, sessionPct = 0 }: MiningMascotProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef    = useRef<number>(0);
+
+  const isActive   = state === 'active';
+  const isPaused   = state === 'paused';
+  const isLocked   = state === 'locked';
+  const isComplete = state === 'complete';
+
+  // Canvas impact particles — client-only, active state only
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !isActive) return;
@@ -24,313 +42,386 @@ export default function MiningMascot({ state, sessionPct = 0 }: MiningMascotProp
     if (!ctxOrNull) return;
     const ctx = ctxOrNull;
 
-    const W = canvas.width  = 200;
-    const H = canvas.height = 200;
-    const cx = W / 2, cy = H / 2;
+    canvas.width  = 260;
+    canvas.height = 260;
 
-    type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number; hue: number };
-    const particles: Particle[] = [];
+    // Crystal tip in canvas coords (matching SVG viewBox 260×260)
+    const HX = 196, HY = 148;
+    const COLORS = ['#9B7BFF', '#C9BBFF', '#6E8BFF', '#27D980', '#ffffff'];
 
-    function spawn() {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 0.4 + Math.random() * 1.0;
-      particles.push({
-        x: cx + (Math.random() - 0.5) * 60,
-        y: cy + (Math.random() - 0.5) * 60,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 0,
-        maxLife: 60 + Math.random() * 80,
-        r: 1.5 + Math.random() * 2,
-        hue: 250 + Math.random() * 60,
-      });
-    }
+    type P = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number; color: string };
+    const ps: P[] = [];
+    let lastSpawn = -9999;
 
-    function tick(t: number) {
-      timeRef.current = t;
-      ctx.clearRect(0, 0, W, H);
-      if (Math.random() < 0.35) spawn();
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.x += p.vx; p.y += p.vy; p.life++;
-        if (p.life > p.maxLife) { particles.splice(i, 1); continue; }
-        const alpha = Math.sin((p.life / p.maxLife) * Math.PI) * 0.9;
+    function frame(t: number) {
+      ctx.clearRect(0, 0, 260, 260);
+      if (t - lastSpawn > 1400) {
+        lastSpawn = t;
+        for (let i = 0; i < 10; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = 0.8 + Math.random() * 3;
+          ps.push({
+            x: HX, y: HY,
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp - 1.5,
+            life: 0, maxLife: 28 + Math.random() * 24,
+            r: 1.2 + Math.random() * 2.2,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          });
+        }
+      }
+      for (let i = ps.length - 1; i >= 0; i--) {
+        const p = ps[i];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life++;
+        if (p.life >= p.maxLife) { ps.splice(i, 1); continue; }
+        ctx.globalAlpha = Math.sin((p.life / p.maxLife) * Math.PI);
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue},90%,75%,${alpha})`;
         ctx.fill();
       }
-      rafRef.current = requestAnimationFrame(tick);
+      ctx.globalAlpha = 1;
+      rafRef.current = requestAnimationFrame(frame);
     }
-
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(rafRef.current); ctx.clearRect(0, 0, W, H); };
+    rafRef.current = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(rafRef.current); };
   }, [isActive]);
 
+  const swingDur  = isPaused ? '4.2s' : '1.4s';
+  const swingPlay = isActive || isPaused ? 'running' : 'paused';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', userSelect: 'none', position: 'relative', width: '200px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', userSelect: 'none' }}>
       <style>{`
         @media (prefers-reduced-motion: reduce) {
-          .mn-ring, .mn-suit, .mn-bar, .mn-glow { animation: none !important; }
+          .mn2-arm, .mn2-bob, .mn2-eq, .mn2-glow, .mn2-flash { animation: none !important; }
         }
-        @keyframes mnRing1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes mnRing2 { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-        @keyframes mnRing3 { from { transform: rotate(45deg); } to { transform: rotate(405deg); } }
-        @keyframes mnBobSuit {
-          0%,100% { transform: translateY(0px); }
-          50%      { transform: translateY(-4px); }
+        @keyframes mn2Swing {
+          0%   { transform: rotate(-70deg); }
+          30%  { transform: rotate(30deg);  }
+          42%  { transform: rotate(18deg);  }
+          56%  { transform: rotate(24deg);  }
+          100% { transform: rotate(-70deg); }
         }
-        @keyframes mnGlowPulse {
-          0%,100% { opacity: 0.5; }
-          50%      { opacity: 1; }
+        @keyframes mn2Bob {
+          0%,100% { transform: translateY(0);   }
+          50%     { transform: translateY(-5px); }
         }
-        @keyframes mnBarFlow {
-          0%   { transform: scaleX(0.3); }
-          50%  { transform: scaleX(1.0); }
-          100% { transform: scaleX(0.3); }
+        @keyframes mn2Glow {
+          0%,100% { opacity: 0.4; }
+          50%     { opacity: 1;   }
         }
-        @keyframes mnHashFlash {
-          0%,90%,100% { opacity: 0.25; }
-          45%          { opacity: 1; }
+        @keyframes mn2Flash {
+          0%,27%,46%,100% { opacity: 0;   }
+          32%             { opacity: 0.9; }
+          40%             { opacity: 0.2; }
         }
-        @keyframes mnLockPulse {
-          0%,100% { transform: scale(1); opacity: 0.7; }
-          50%      { transform: scale(1.05); opacity: 1; }
+        @keyframes mn2Eq {
+          0%   { transform: scaleY(0.1); }
+          100% { transform: scaleY(1);   }
         }
-        @keyframes mnBlink {
-          0%,48%,52%,100% { transform: scaleY(1); }
-          50%              { transform: scaleY(0.08); }
+        @keyframes mn2Lamp {
+          0%,100% { opacity: 0.8; }
+          50%     { opacity: 1;   }
+        }
+        @keyframes mn2LockPulse {
+          0%,100% { transform: scale(1);    opacity: 0.7; }
+          50%     { transform: scale(1.06); opacity: 1;   }
+        }
+        @keyframes mn2Conf1 {
+          0%   { transform: translateY(0)   rotate(0deg);    opacity: 1; }
+          100% { transform: translateY(-44px) rotate(180deg); opacity: 0; }
+        }
+        @keyframes mn2Conf2 {
+          0%   { transform: translateY(0)   rotate(0deg);    opacity: 1; }
+          100% { transform: translateY(-58px) rotate(-220deg); opacity: 0; }
+        }
+        @keyframes mn2Conf3 {
+          0%   { transform: translateY(0)   rotate(0deg);    opacity: 1; }
+          100% { transform: translateY(-36px) rotate(270deg); opacity: 0; }
         }
       `}</style>
 
-      {/* Particle canvas */}
-      <canvas
-        ref={canvasRef}
-        width={200} height={200}
-        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', opacity: isActive ? 1 : 0, transition: 'opacity .4s' }}
-      />
+      <div style={{ position: 'relative', width: '260px', height: '260px' }}>
+        {/* Impact particle canvas */}
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: 'absolute', inset: 0,
+            width: '260px', height: '260px',
+            pointerEvents: 'none',
+            opacity: isActive ? 1 : 0,
+            transition: 'opacity .4s',
+          }}
+        />
 
-      {/* Main SVG */}
-      <svg viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{ overflow: 'visible', position: 'relative', zIndex: 1 }} aria-label={`Etheon miner — ${state}`}>
-        <defs>
-          <radialGradient id="mmCoreGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={isLocked ? '#3A3050' : '#7C5CFF'} stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#0B0A14" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="mmFaceGrad" cx="45%" cy="40%" r="60%">
-            <stop offset="0%" stopColor="#E8D5C0" />
-            <stop offset="100%" stopColor="#C4A882" />
-          </radialGradient>
-          <linearGradient id="mmSuit" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={isLocked ? '#1E1C28' : '#23213A'} />
-            <stop offset="100%" stopColor={isLocked ? '#0F0E18' : '#141225'} />
-          </linearGradient>
-          <linearGradient id="mmTie" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={isLocked ? '#3A3750' : '#7C5CFF'} />
-            <stop offset="100%" stopColor={isLocked ? '#1A1830' : '#4A35C8'} />
-          </linearGradient>
-          <linearGradient id="mmScreen" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1A1635" />
-            <stop offset="100%" stopColor="#0D0B20" />
-          </linearGradient>
-          <filter id="mmGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="b" />
-            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-          <filter id="mmGlowSoft" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="7" result="b" />
-            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
+        <svg
+          viewBox="0 0 260 260"
+          width="260"
+          height="260"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
+          aria-label={`Etheon miner — ${state}`}
+        >
+          <defs>
+            <radialGradient id="mn2HelmGrad" cx="38%" cy="30%" r="60%">
+              <stop offset="0%" stopColor="#7C5CFF" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#1A1038" stopOpacity="1" />
+            </radialGradient>
+            <linearGradient id="mn2VisorGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4A6AFF" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#060420" stopOpacity="0.98" />
+            </linearGradient>
+            <linearGradient id="mn2SuitGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1E1C35" />
+              <stop offset="100%" stopColor="#0F0E1E" />
+            </linearGradient>
+            <radialGradient id="mn2CrystalGrad" cx="30%" cy="25%" r="65%">
+              <stop offset="0%" stopColor="#D0C4FF" />
+              <stop offset="55%" stopColor="#9B7BFF" />
+              <stop offset="100%" stopColor="#2A1870" />
+            </radialGradient>
+            <filter id="mn2Glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
 
-        {/* Core glow */}
-        <circle cx="100" cy="105" r="68" fill="url(#mmCoreGlow)" className="mn-glow"
-          style={{ animation: isActive ? 'mnGlowPulse 2s ease-in-out infinite' : undefined }} />
+          {/* Ground shadow */}
+          <ellipse cx="118" cy="244" rx="58" ry="7" fill="rgba(0,0,0,0.35)" />
 
-        {/* ── Animated orbital rings (active only) ── */}
-        {!isLocked && (<>
-          {/* Ring 1 — slow outer */}
-          <g className="mn-ring" style={{ transformOrigin: '100px 105px', animation: 'mnRing1 6s linear infinite', opacity: isActive ? 0.7 : 0.2 }}>
-            <circle cx="100" cy="105" r="74" fill="none" stroke="#7C5CFF" strokeWidth="1" strokeDasharray="8 16" strokeLinecap="round" />
-            <circle cx="100" cy="31" r="4" fill="#C9BBFF" filter="url(#mmGlow)" />
-          </g>
-          {/* Ring 2 — counter inner */}
-          <g className="mn-ring" style={{ transformOrigin: '100px 105px', animation: 'mnRing2 4s linear infinite', opacity: isActive ? 0.6 : 0.15 }}>
-            <circle cx="100" cy="105" r="62" fill="none" stroke="#6E8BFF" strokeWidth="0.8" strokeDasharray="4 12" strokeLinecap="round" />
-            <circle cx="100" cy="43" r="3" fill="#6E8BFF" filter="url(#mmGlow)" />
-          </g>
-          {/* Ring 3 — tilted medium */}
-          <g className="mn-ring" style={{ transformOrigin: '100px 105px', animation: 'mnRing3 8s linear infinite', opacity: isActive ? 0.5 : 0.1 }}>
-            <ellipse cx="100" cy="105" rx="80" ry="26" fill="none" stroke="#9B7BFF" strokeWidth="0.7" strokeDasharray="6 18" strokeLinecap="round" transform="rotate(-20 100 105)" />
-            <circle cx="172" cy="88" r="2.5" fill="#9B7BFF" filter="url(#mmGlow)" />
-          </g>
-        </>)}
-
-        {/* ── Shadow ── */}
-        <ellipse cx="100" cy="192" rx="50" ry="6" fill="rgba(0,0,0,0.35)" />
-
-        {/* ── CHARACTER ── */}
-        <g className="mn-suit"
-          style={{ animation: isActive ? 'mnBobSuit 1.6s ease-in-out infinite' : undefined, transformOrigin: '100px 140px' }}>
-
-          {/* Legs */}
-          <rect x="82" y="159" width="14" height="28" rx="5" fill="#1A1830" />
-          <rect x="104" y="159" width="14" height="28" rx="5" fill="#1A1830" />
-          {/* Shoes */}
-          <rect x="78"  y="182" width="20" height="8" rx="4" fill="#0D0C18" />
-          <rect x="100" y="182" width="20" height="8" rx="4" fill="#0D0C18" />
-          <rect x="78"  y="186" width="20" height="4" rx="2" fill="#070610" />
-          <rect x="100" y="186" width="20" height="4" rx="2" fill="#070610" />
-
-          {/* Suit trousers */}
-          <rect x="82"  y="148" width="14" height="16" rx="3" fill="url(#mmSuit)" />
-          <rect x="104" y="148" width="14" height="16" rx="3" fill="url(#mmSuit)" />
-
-          {/* Suit jacket body */}
-          <path d="M72,100 L76,85 L100,95 L124,85 L128,100 L130,158 L70,158 Z" fill="url(#mmSuit)" />
-          {/* Jacket lapels */}
-          <path d="M100,95 L88,100 L84,120 Z" fill="#2A2848" />
-          <path d="M100,95 L112,100 L116,120 Z" fill="#2A2848" />
-          {/* Lapel highlight */}
-          <path d="M100,95 L88,100 L90,104" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-          <path d="M100,95 L112,100 L110,104" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-
-          {/* Shirt & tie */}
-          <path d="M93,100 L100,95 L107,100 L108,132 L92,132 Z" fill="#F0EEF8" />
-          <path d="M97,100 L100,96 L103,100 L104,120 L96,120 Z" fill="url(#mmTie)" />
-          {/* Tie pin */}
-          <rect x="97" y="112" width="6" height="2" rx="1" fill={isLocked ? '#5A5070' : '#C9BBFF'} />
-
-          {/* Left arm */}
-          <path d="M72,100 L62,120 L66,136 L74,134 L80,120 L76,100 Z" fill="url(#mmSuit)" />
-          {/* Left cuff */}
-          <rect x="61" y="132" width="14" height="6" rx="3" fill="#F0EEF8" />
-          {/* Left hand */}
-          <ellipse cx="68" cy="141" rx="7" ry="5" fill="url(#mmFaceGrad)" />
-
-          {/* Right arm */}
-          <path d="M128,100 L138,120 L134,136 L126,134 L120,120 L124,100 Z" fill="url(#mmSuit)" />
-          {/* Right cuff */}
-          <rect x="125" y="132" width="14" height="6" rx="3" fill="#F0EEF8" />
-          {/* Right hand holds tablet/device */}
-          <ellipse cx="132" cy="141" rx="7" ry="5" fill="url(#mmFaceGrad)" />
-
-          {/* Pocket square */}
-          <path d="M116,104 L121,104 L120,110 L115,109 Z" fill={isLocked ? '#4A4060' : '#C9BBFF'} opacity="0.8" />
-
-          {/* Tablet device in right hand */}
-          <rect x="130" y="134" width="22" height="16" rx="3" fill="url(#mmScreen)" />
-          <rect x="131" y="135" width="20" height="14" rx="2" fill="none" stroke={isLocked ? '#2A2840' : 'rgba(124,92,255,0.5)'} strokeWidth="0.8" />
-          {/* Screen content — hash bars */}
-          {[0, 1, 2].map((i) => (
-            <rect key={i}
-              x={133} y={137 + i * 4} width={6 + i * 4} height={2.5} rx={1}
-              fill={isLocked ? '#2A2840' : '#7C5CFF'}
-              style={{ transformOrigin: `${133}px ${138.25 + i * 4}px`, animation: isActive ? `mnBarFlow ${1.2 + i * 0.3}s ease-in-out infinite ${i * 0.2}s` : undefined }}
-            />
-          ))}
-          {/* Screen glow */}
-          {isActive && <rect x="130" y="134" width="22" height="16" rx="3" fill="rgba(124,92,255,0.06)" style={{ animation: 'mnGlowPulse 2s ease-in-out infinite' }} />}
-
-          {/* Neck */}
-          <rect x="93" y="76" width="14" height="14" rx="4" fill="url(#mmFaceGrad)" />
-
-          {/* Head */}
-          <ellipse cx="100" cy="64" rx="22" ry="20" fill="url(#mmFaceGrad)" />
-
-          {/* Hair — slicked back professional */}
-          <path d="M78,60 Q80,40 100,38 Q120,40 122,60 Q110,52 100,53 Q90,52 78,60 Z" fill="#1A1418" />
-          {/* Hair highlight */}
-          <path d="M83,56 Q92,47 105,48" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" strokeLinecap="round" />
-
-          {/* Ears */}
-          <ellipse cx="78"  cy="65" rx="4" ry="5.5" fill="url(#mmFaceGrad)" />
-          <ellipse cx="122" cy="65" rx="4" ry="5.5" fill="url(#mmFaceGrad)" />
-
-          {/* Eyes */}
-          <ellipse cx="92"  cy="64" rx="4.5" ry="4.2" fill="white" />
-          <ellipse cx="108" cy="64" rx="4.5" ry="4.2" fill="white" />
-          {/* Irises */}
-          <circle cx="93"  cy="65" r="2.8" fill="#2A1E0E"
-            style={{ animation: 'mnBlink 4s ease-in-out infinite', transformOrigin: '93px 65px' }} />
-          <circle cx="109" cy="65" r="2.8" fill="#2A1E0E"
-            style={{ animation: 'mnBlink 4s ease-in-out infinite 0.05s', transformOrigin: '109px 65px' }} />
-          {/* Pupils */}
-          <circle cx="93.5"  cy="65" r="1.4" fill="#0D0906" />
-          <circle cx="109.5" cy="65" r="1.4" fill="#0D0906" />
-          {/* Eye shine */}
-          <circle cx="94.5"  cy="63.5" r="0.9" fill="white" />
-          <circle cx="110.5" cy="63.5" r="0.9" fill="white" />
-
-          {/* Eyebrows */}
-          <path d="M87,59 Q92,57 97,59"   fill="none" stroke="#2A1E0E" strokeWidth="2" strokeLinecap="round" />
-          <path d="M103,59 Q108,57 113,59" fill="none" stroke="#2A1E0E" strokeWidth="2" strokeLinecap="round" />
-
-          {/* Expression — confident smile when active, neutral when ready/locked */}
-          {isActive ? (
-            <path d="M90,74 Q100,81 110,74" fill="none" stroke="#9A6A40" strokeWidth="2" strokeLinecap="round" />
-          ) : isLocked ? (
-            <path d="M92,74 L108,74" fill="none" stroke="#9A6A40" strokeWidth="1.8" strokeLinecap="round" />
-          ) : (
-            <path d="M91,74 Q100,79 109,74" fill="none" stroke="#9A6A40" strokeWidth="1.8" strokeLinecap="round" />
-          )}
-          {/* Cheeks */}
-          <ellipse cx="84"  cy="71" rx="4" ry="2.5" fill="rgba(210,100,80,0.18)" />
-          <ellipse cx="116" cy="71" rx="4" ry="2.5" fill="rgba(210,100,80,0.18)" />
-
-          {/* Status indicator pin on lapel */}
-          <circle cx="90" cy="116" r="3.5"
-            fill={isLocked ? '#3A3050' : isActive ? '#16D98A' : '#FFB55C'}
-            filter={isActive ? 'url(#mmGlow)' : undefined}
-            style={{ animation: isActive ? 'mnGlowPulse 1.5s ease-in-out infinite' : undefined }} />
-          <circle cx="90" cy="116" r="3.5" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.8" />
-        </g>
-
-        {/* Hash rate bars below figure (active) */}
-        {!isLocked && (
-          <g transform="translate(56, 176)" className="mn-bar">
-            {[
-              { w: 16, delay: '0s',    h: 260 },
-              { w: 24, delay: '0.15s', h: 280 },
-              { w: 12, delay: '0.3s',  h: 250 },
-              { w: 20, delay: '0.45s', h: 270 },
-              { w: 18, delay: '0.6s',  h: 265 },
-            ].map((b, i) => (
-              <rect key={i}
-                x={i * 18} y={0} width={b.w} height={4} rx={2}
-                fill={isActive ? '#7C5CFF' : '#2A2848'}
+          {/* ── EQ bars LEFT ── */}
+          {EQ_L.map((b, i) => {
+            const bx = 8 + i * 10;
+            const by = 214;
+            return (
+              <rect key={`el${i}`}
+                x={bx} y={by - b.h} width={6} height={b.h} rx={3}
+                fill={isLocked ? '#2A2445' : '#7C5CFF'}
+                className="mn2-eq"
                 style={{
-                  transformOrigin: `${i * 18}px 2px`,
-                  animation: isActive ? `mnBarFlow ${1 + (i % 3) * 0.25}s ease-in-out infinite ${b.delay}` : undefined,
-                  transition: 'fill .4s',
+                  transformOrigin: `${bx + 3}px ${by}px`,
+                  animation: isActive ? `mn2Eq ${b.sp} ${b.d} ease-in-out infinite alternate` : 'none',
+                  opacity: isLocked ? 0.2 : 0.75,
+                  transition: 'fill .4s, opacity .4s',
                 }}
               />
-            ))}
-          </g>
-        )}
+            );
+          })}
 
-        {/* Lock overlay */}
-        {isLocked && (
-          <g transform="translate(82, 24)" style={{ animation: 'mnLockPulse 2.5s ease-in-out infinite' }}>
-            <rect x="-2" y="0" width="40" height="36" rx="10" fill="rgba(20,18,36,0.85)" stroke="rgba(124,92,255,0.25)" strokeWidth="1" />
-            <rect x="9" y="14" width="18" height="16" rx="4" fill="#2A2848" />
-            <path d="M10,15 L10,10 Q10,4 18,4 Q26,4 26,10 L26,15" fill="none" stroke="#3A3060" strokeWidth="3" strokeLinecap="round" />
-            <rect x="15" y="18" width="6" height="7" rx="1.5" fill="#4A406A" />
-            <circle cx="18" cy="21" r="1.5" fill="#7C5CFF" />
-          </g>
-        )}
+          {/* ── EQ bars RIGHT ── */}
+          {EQ_R.map((b, i) => {
+            const bx = 206 + i * 10;
+            const by = 214;
+            return (
+              <rect key={`er${i}`}
+                x={bx} y={by - b.h} width={6} height={b.h} rx={3}
+                fill={isLocked ? '#2A2445' : '#6E8BFF'}
+                className="mn2-eq"
+                style={{
+                  transformOrigin: `${bx + 3}px ${by}px`,
+                  animation: isActive ? `mn2Eq ${b.sp} ${b.d} ease-in-out infinite alternate` : 'none',
+                  opacity: isLocked ? 0.2 : 0.75,
+                  transition: 'fill .4s, opacity .4s',
+                }}
+              />
+            );
+          })}
 
-        {/* "Hash" label badge (active) */}
-        {isActive && (
-          <g style={{ animation: 'mnHashFlash 2.4s ease-in-out infinite' }}>
-            <rect x="8" y="88" width="36" height="16" rx="5" fill="rgba(124,92,255,0.15)" stroke="rgba(124,92,255,0.3)" strokeWidth="0.8" />
-            <text x="26" y="99" fontSize="9" fontWeight="700" fill="#C9BBFF" textAnchor="middle" fontFamily="monospace">HASH</text>
+          {/* ── Crystal rock target ── */}
+          <g transform="translate(186,156)">
+            {/* Rock base */}
+            <polygon points="-16,22 -20,8 -12,-5 2,-14 18,-10 24,5 18,22"
+              fill="#1E1A38" stroke="#3A3060" strokeWidth="1.5" />
+            {/* Crystal shards */}
+            <polygon points="4,-14 9,-34 14,-14" fill="url(#mn2CrystalGrad)" />
+            <polygon points="-3,-11 2,-29 7,-11" fill="url(#mn2CrystalGrad)" opacity="0.85" />
+            <polygon points="-1,-9 -9,-24 5,-24 13,-9" fill="url(#mn2CrystalGrad)" opacity="0.9" />
+            {/* Crystal shine */}
+            <line x1="6" y1="-30" x2="9" y2="-20"
+              stroke="#fff" strokeWidth="1.5" strokeOpacity="0.55" strokeLinecap="round" />
+            {/* Impact flash */}
+            <circle cx="7" cy="-22" r="13" fill="#C9BBFF"
+              className="mn2-flash"
+              style={{
+                opacity: 0,
+                animation: isActive ? 'mn2Flash 1.4s ease-in-out infinite' : 'none',
+              }}
+              filter="url(#mn2Glow)"
+            />
           </g>
-        )}
-      </svg>
+
+          {/* ── Body — bobs when active ── */}
+          <g className="mn2-bob"
+            style={{
+              transformOrigin: '118px 155px',
+              animation: isActive ? 'mn2Bob 1.4s ease-in-out infinite' : 'none',
+            }}
+          >
+            {/* Legs */}
+            <rect x="94"  y="174" width="18" height="46" rx="6" fill="url(#mn2SuitGrad)" stroke="#2A2848" strokeWidth="1" />
+            <rect x="118" y="174" width="18" height="46" rx="6" fill="url(#mn2SuitGrad)" stroke="#2A2848" strokeWidth="1" />
+            {/* Knee pads */}
+            <rect x="96"  y="192" width="14" height="9"  rx="3" fill="#2A2450" />
+            <rect x="120" y="192" width="14" height="9"  rx="3" fill="#2A2450" />
+            {/* Boots */}
+            <rect x="90"  y="214" width="24" height="13" rx="5" fill="#0D0B1E" />
+            <rect x="116" y="214" width="24" height="13" rx="5" fill="#0D0B1E" />
+
+            {/* Torso */}
+            <path d="M82,106 L86,94 L150,94 L154,106 L156,174 L80,174 Z"
+              fill="url(#mn2SuitGrad)" stroke="#2A2848" strokeWidth="1" />
+            {/* Chest plate */}
+            <rect x="88" y="98" width="54" height="44" rx="7" fill="#201E3C" stroke="#3A3060" strokeWidth="1" />
+            {/* Chest glow strip */}
+            <rect x="112" y="104" width="6" height="32" rx="3" fill="#9B7BFF"
+              className="mn2-glow"
+              style={{ opacity: 0.6, animation: isActive ? 'mn2Glow 1.4s ease-in-out infinite' : 'none' }}
+            />
+            {/* Chest panel lines */}
+            <line x1="90" y1="122" x2="140" y2="122" stroke="#3A3060" strokeWidth="0.8" />
+            <line x1="90" y1="132" x2="140" y2="132" stroke="#3A3060" strokeWidth="0.8" />
+            {/* Belt */}
+            <rect x="82" y="172" width="68" height="9" rx="3" fill="#2A2450" stroke="#3A3060" strokeWidth="1" />
+            <rect x="109" y="173" width="18" height="7" rx="2" fill="#3A3060" />
+            <circle cx="118" cy="176.5" r="2.5" fill="#9B7BFF" opacity="0.7" />
+
+            {/* Left arm — static */}
+            <path d="M82,106 L70,122 L66,146 L78,150 L86,132 L86,106 Z"
+              fill="url(#mn2SuitGrad)" stroke="#2A2848" strokeWidth="1" />
+            <ellipse cx="70" cy="152" rx="9" ry="6" fill="#2A2450" stroke="#3A3060" strokeWidth="1" />
+            {/* Left shoulder pad */}
+            <ellipse cx="83" cy="106" rx="10" ry="7" fill="#2A2450" stroke="#3A3060" strokeWidth="1" />
+
+            {/* Right shoulder pad */}
+            <ellipse cx="152" cy="104" rx="10" ry="7" fill="#2A2450" stroke="#3A3060" strokeWidth="1" />
+
+            {/* ── RIGHT ARM + PICKAXE — rotates around shoulder (152, 104) ── */}
+            <g className="mn2-arm"
+              style={{
+                transformOrigin: '152px 104px',
+                animation: `mn2Swing ${swingDur} ease-in-out infinite`,
+                animationPlayState: swingPlay,
+              }}
+            >
+              {/* Upper arm */}
+              <rect x="144" y="104" width="16" height="32" rx="6"
+                fill="url(#mn2SuitGrad)" stroke="#2A2848" strokeWidth="1" />
+              {/* Forearm */}
+              <rect x="142" y="134" width="14" height="28" rx="5"
+                fill="url(#mn2SuitGrad)" stroke="#2A2848" strokeWidth="1" />
+              {/* Glove */}
+              <ellipse cx="150" cy="165" rx="9" ry="6" fill="#2A2450" stroke="#3A3060" strokeWidth="1" />
+              {/* Pickaxe handle */}
+              <rect x="147" y="162" width="6" height="52" rx="3"
+                fill="#7B6040" stroke="#9B7A50" strokeWidth="1"
+                transform="rotate(6,150,162)" />
+              {/* Pickaxe head — at end of handle */}
+              <g transform="translate(162, 208) rotate(-18)">
+                {/* Shaft center */}
+                <rect x="-24" y="-5" width="48" height="10" rx="3" fill="#8090A8" stroke="#5060A0" strokeWidth="1" />
+                {/* Blunt end left */}
+                <path d="M-24,-5 L-38,-4 L-38,4 L-24,5 Z" fill="#9098B8" stroke="#5060A0" strokeWidth="0.8" />
+                {/* Sharp end right — business end hits crystal */}
+                <path d="M24,-5 L42,-9 L44,0 L42,9 L24,5 Z" fill="#C0C8E0" stroke="#5060A0" strokeWidth="0.8" />
+                {/* Metal shine */}
+                <line x1="-36" y1="-3" x2="40" y2="-7" stroke="#fff" strokeWidth="1" strokeOpacity="0.22" />
+                <line x1="24" y1="-5" x2="42" y2="-9" stroke="#fff" strokeWidth="1.2" strokeOpacity="0.45" />
+              </g>
+            </g>
+
+            {/* Status LED on chest */}
+            <circle cx="104" cy="124" r="4"
+              fill={isLocked ? '#2A2848' : isActive ? '#16D98A' : isPaused ? '#F5B642' : '#9B7BFF'}
+              filter={isActive ? 'url(#mn2Glow)' : undefined}
+              style={{ animation: isActive ? 'mn2Glow 1.4s ease-in-out infinite' : 'none' }}
+            />
+
+            {/* Neck */}
+            <rect x="110" y="78" width="16" height="18" rx="4" fill="#1E1C35" stroke="#2A2848" strokeWidth="1" />
+
+            {/* ── HELMET ── */}
+            <g>
+              {/* Shell */}
+              <ellipse cx="118" cy="58" rx="33" ry="31" fill="url(#mn2HelmGrad)" stroke="#5A3FBF" strokeWidth="2" />
+              {/* Seam line */}
+              <path d="M86 60 Q86 83 118 86 Q150 83 150 60"
+                fill="none" stroke="#3A2090" strokeWidth="1" opacity="0.5" />
+              {/* Visor shape */}
+              <path d="M89,64 Q89,86 118,88 Q147,86 147,64" fill="url(#mn2VisorGrad)" />
+              {/* Visor dark interior */}
+              <path d="M92,66 Q92,83 118,84 Q144,83 144,66" fill="#050313" opacity="0.9" />
+              {/* HUD lines inside visor */}
+              {isActive && <>
+                <line x1="97" y1="72" x2="139" y2="72" stroke="#6E8BFF" strokeWidth="0.8" opacity="0.35" />
+                <line x1="97" y1="77" x2="122" y2="77" stroke="#6E8BFF" strokeWidth="0.8" opacity="0.2" />
+              </>}
+              {/* Visor reflection */}
+              <path d="M96,69 Q107,78 118,78" stroke="#4A6AFF" strokeWidth="1.5" fill="none" opacity="0.3" />
+              {/* Helmet lamp */}
+              <circle cx="118" cy="32" r="8" fill="#FFD700"
+                className="mn2-glow"
+                style={{
+                  opacity: isActive ? 1 : 0.5,
+                  animation: isActive ? 'mn2Lamp 0.28s ease-in-out infinite alternate' : 'none',
+                }}
+              />
+              <circle cx="118" cy="32" r="5" fill="#FFF8A0" />
+              {/* Lamp glow halo */}
+              <circle cx="118" cy="32" r="18" fill="#FFD700"
+                style={{ opacity: isActive ? 0.18 : 0.04, filter: 'blur(5px)' }}
+              />
+              {/* Side vents */}
+              <rect x="83" y="56" width="4" height="14" rx="2" fill="#2A1870" opacity="0.65" />
+              <rect x="149" y="56" width="4" height="14" rx="2" fill="#2A1870" opacity="0.65" />
+
+              {/* Lock icon overlay */}
+              {isLocked && (
+                <g style={{ animation: 'mn2LockPulse 2.5s ease-in-out infinite' }}>
+                  <rect x="101" y="62" width="34" height="28" rx="7"
+                    fill="rgba(11,10,20,0.9)" stroke="rgba(155,123,255,0.3)" strokeWidth="1" />
+                  <path d="M108,62 L108,56 Q108,49 118,49 Q128,49 128,56 L128,62"
+                    fill="none" stroke="#3A3060" strokeWidth="2.5" strokeLinecap="round" />
+                  <rect x="104" y="62" width="28" height="22" rx="4"
+                    fill="#1E1A38" stroke="#9B7BFF" strokeWidth="1.2" />
+                  <circle cx="118" cy="72" r="4" fill="#9B7BFF" opacity="0.7" />
+                  <rect x="116.5" y="72" width="3" height="7" rx="1.5" fill="#9B7BFF" opacity="0.7" />
+                </g>
+              )}
+            </g>
+          </g>
+
+          {/* ── Complete celebration ── */}
+          {isComplete && [
+            { cx: 74,  cy: 52, r: 5, fill: '#27D980', an: 'mn2Conf1', dur: '1s',    d: '0s'    },
+            { cx: 168, cy: 42, r: 4, fill: '#9B7BFF', an: 'mn2Conf2', dur: '1.2s',  d: '0.1s'  },
+            { cx: 188, cy: 68, r: 5, fill: '#F5B642', an: 'mn2Conf3', dur: '0.9s',  d: '0.05s' },
+            { cx: 56,  cy: 68, r: 3, fill: '#6E8BFF', an: 'mn2Conf1', dur: '1.3s',  d: '0.2s'  },
+            { cx: 152, cy: 36, r: 4, fill: '#27D980', an: 'mn2Conf2', dur: '1.1s',  d: '0.15s' },
+            { cx: 208, cy: 52, r: 3, fill: '#C9BBFF', an: 'mn2Conf3', dur: '0.8s',  d: '0.08s' },
+          ].map((c, i) => (
+            <circle key={i} cx={c.cx} cy={c.cy} r={c.r} fill={c.fill}
+              style={{ animation: `${c.an} ${c.dur} ${c.d} ease-out infinite` }}
+            />
+          ))}
+
+          {/* ── Session progress bar ── */}
+          {(isActive || isPaused || isComplete) && (
+            <>
+              <rect x="52" y="252" width="156" height="5" rx="2.5" fill="#1E1A38" />
+              <rect x="52" y="252"
+                width={Math.max(0, Math.min(156, sessionPct * 1.56))}
+                height="5" rx="2.5"
+                fill={isComplete ? '#27D980' : '#9B7BFF'}
+                style={{ transition: 'width .5s ease' }}
+              />
+            </>
+          )}
+        </svg>
+      </div>
 
       {/* State label */}
-      <div style={{ fontSize: '12px', color: '#6F6B82', fontWeight: 600, textAlign: 'center', maxWidth: '200px', lineHeight: 1.4, marginTop: '-2px' }}>
+      <div style={{ fontSize: '12px', color: '#6F6B82', fontWeight: 600, textAlign: 'center', maxWidth: '240px', lineHeight: 1.4 }}>
         {state === 'locked'   && 'Subscribe and deposit to unlock rewards mining'}
         {state === 'ready'    && 'Ready to start your rewards session'}
         {state === 'active'   && `Mining in progress — ${sessionPct.toFixed(1)}% of session`}

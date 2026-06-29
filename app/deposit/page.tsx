@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { QRCodeSVG } from 'qrcode.react';
 import { AppProvider, useApp } from '../(app)/AppContext';
+import { triggerFlare } from '../../components/ActionFlare';
 import { useContent } from '../../hooks/useContent';
 import UnlockProgressCard from '../../components/UnlockProgressCard';
 import Icon from '../../components/Icon';
@@ -132,6 +133,7 @@ function DepositPageInner() {
     }
     setCheckoutLoading(true);
     setCheckoutError(null);
+    triggerFlare();
     try {
       const res = await fetch('/api/stripe/deposit', {
         method: 'POST',

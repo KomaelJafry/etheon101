@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import Icon from '../../components/Icon';
+import { triggerFlare } from '../../components/ActionFlare';
 import { EtheonCrystal } from '../../components/EtheonBrand';
 
 type Plan = 'starter' | 'growth' | 'annual';
@@ -132,9 +133,10 @@ export default function PricingPage() {
     sb.auth.getSession().then(({ data }) => setLoggedIn(!!data.session));
   }, []);
 
-  async function handlePlanClick(plan: Plan) {
+  async function handlePlanClick(plan: Plan, e?: React.MouseEvent) {
     setPlanError(null);
     if (!loggedIn) { router.push('/login?tab=signup'); return; }
+    triggerFlare({ x: e?.clientX, y: e?.clientY });
     setLoadingPlan(plan);
     const result = await startCheckout(plan);
     if (result.error) { setPlanError(result.error); setLoadingPlan(null); return; }
@@ -223,7 +225,7 @@ export default function PricingPage() {
                   </div>
 
                   <button
-                    onClick={() => handlePlanClick(plan.id)}
+                    onClick={(e) => handlePlanClick(plan.id, e)}
                     disabled={busy}
                     style={{ width: '100%', padding: '14px', borderRadius: '13px', fontSize: plan.highlight ? '15px' : '14px', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.7 : 1, transition: 'opacity 0.15s', border: 'none', ...(plan.highlight ? { background: '#7C5CFF', color: '#fff', boxShadow: '0 8px 26px rgba(124,92,255,0.45)' } : { background: 'rgba(124,92,255,0.12)', color: '#C9BBFF', border: '1px solid rgba(124,92,255,0.28)' }) }}>
                     {busy ? 'Redirecting to checkout…' : plan.cta}
@@ -324,7 +326,7 @@ export default function PricingPage() {
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: '26px', letterSpacing: '-0.02em', marginBottom: '10px' }}>Ready to get started?</div>
           <p style={{ fontSize: '15px', color: '#8A8699', marginBottom: '26px' }}>Create an account and choose your plan to unlock Rewards Mining.</p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => handlePlanClick('growth')} disabled={!!loadingPlan}
+            <button onClick={(e) => handlePlanClick('growth', e)} disabled={!!loadingPlan}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '15px 32px', borderRadius: '13px', background: '#7C5CFF', fontSize: '15px', fontWeight: 700, color: '#fff', border: 'none', cursor: loadingPlan ? 'not-allowed' : 'pointer', opacity: loadingPlan ? 0.7 : 1, boxShadow: '0 8px 26px rgba(124,92,255,0.45)' }}>
               {loadingPlan === 'growth' ? 'Redirecting…' : 'Choose Growth — Most Popular'}
               {loadingPlan !== 'growth' && <Icon name="arrow_forward" size={18} color="#fff" />}

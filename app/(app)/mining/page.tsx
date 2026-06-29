@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
 import MiningMascot, { MascotState } from '../../../components/MiningMascot';
+import { triggerFlare } from '../../../components/ActionFlare';
 import UnlockProgressCard from '../../../components/UnlockProgressCard';
 import { useContent } from '../../../hooks/useContent';
 
@@ -330,7 +331,7 @@ export default function MiningPage() {
 
           <RippleButton
             variant={isActiveLive ? 'pause' : 'purple'}
-            onClick={toggleMining}
+            onClick={(e) => { if (!isActiveLive) triggerFlare({ x: e.clientX, y: e.clientY }); toggleMining(); }}
             disabled={!isEligible}
             style={{ width:'100%', marginTop:'18px', display:'flex', alignItems:'center', justifyContent:'center', gap:'9px', fontSize:'15px', padding:'15px', borderRadius:'15px', cursor: isEligible ? 'pointer' : 'not-allowed', opacity: isEligible ? 1 : 0.5, ...(isActiveLive ? {} : { boxShadow: isEligible ? '0 8px 26px rgba(124,92,255,0.45)' : 'none' }) }}>
             <Icon name={isActiveLive ? 'pause' : 'play_arrow'} size={20} color={isActiveLive ? '#FF8DA3' : '#fff'} />

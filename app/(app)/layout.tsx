@@ -8,6 +8,7 @@ import Icon from '../../components/Icon';
 import RippleButton from '../../components/RippleButton';
 import { ToastProvider } from '../../components/Toast';
 import { EtheonCrystal } from '../../components/EtheonBrand';
+import ActionFlare, { triggerFlare } from '../../components/ActionFlare';
 
 const NAV = [
   { href: '/dashboard',    icon: 'grid_view',              label: 'Dashboard' },
@@ -121,7 +122,7 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
 
         {err && <div style={{ padding:'10px 14px', borderRadius:'12px', marginBottom:'14px', background:'rgba(255,107,138,0.1)', border:'1px solid rgba(255,107,138,0.3)', fontSize:'13px', color:'#FF6B8A' }}>{err}</div>}
 
-        <RippleButton variant="purple" onClick={() => startCheckout(selected)} disabled={loading} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', fontSize:'15px', fontWeight:700, color:'#fff', padding:'15px', borderRadius:'14px', background: loading ? 'rgba(155,123,255,0.5)' : '#9B7BFF', boxShadow:'0 8px 22px rgba(155,123,255,0.35)', cursor: loading ? 'not-allowed' : 'pointer' }}>
+        <RippleButton variant="purple" onClick={(e) => { triggerFlare({ x: e.clientX, y: e.clientY }); startCheckout(selected); }} disabled={loading} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', fontSize:'15px', fontWeight:700, color:'#fff', padding:'15px', borderRadius:'14px', background: loading ? 'rgba(155,123,255,0.5)' : '#9B7BFF', boxShadow:'0 8px 22px rgba(155,123,255,0.35)', cursor: loading ? 'not-allowed' : 'pointer' }}>
           {loading ? 'Redirecting…' : `Continue with ${PLANS.find(p => p.id === selected)?.name}`}
           {!loading && <Icon name="arrow_forward" size={18} color="#fff" />}
         </RippleButton>
@@ -169,6 +170,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
+      <ActionFlare />
       {upgradeOpen && <UpgradeModal onClose={() => setUpgradeOpen(false)} />}
 
       <div className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`} onClick={closeSidebar} />

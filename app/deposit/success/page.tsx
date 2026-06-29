@@ -1,8 +1,10 @@
 'use client';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { AppProvider } from '../../(app)/AppContext';
 import { useContent } from '../../../hooks/useContent';
 import Icon from '../../../components/Icon';
+import { triggerFlare } from '../../../components/ActionFlare';
 
 export default function DepositSuccessPage() {
   return <AppProvider><DepositSuccessInner /></AppProvider>;
@@ -10,6 +12,8 @@ export default function DepositSuccessPage() {
 
 function DepositSuccessInner() {
   const { get } = useContent(['payment']);
+
+  useEffect(() => { triggerFlare(); }, []);
 
   const message = get(
     'payment',
