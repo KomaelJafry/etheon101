@@ -49,7 +49,7 @@ export async function POST() {
     .eq('id', user!.id);
 
   // Create transaction record
-  await supabase.from('transactions').insert({
+  const { error: txErr } = await supabase.from('transactions').insert({
     user_id: user!.id,
     type: 'reward',
     amount_gbp: REWARD_GBP,
@@ -59,6 +59,7 @@ export async function POST() {
     description: 'Mining cycle reward credited',
     created_by: user!.id,
   });
+  if (txErr) console.error('mining/complete: transaction insert failed', txErr);
 
   return NextResponse.json({ ok: true, reward_gbp: REWARD_GBP, new_balance: newBalance });
 }
