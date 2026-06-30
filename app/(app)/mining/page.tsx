@@ -92,12 +92,18 @@ export default function MiningPage() {
     /* eslint-disable react-hooks/set-state-in-effect */
     const startedAt = profile.mining_session_started_at ? new Date(profile.mining_session_started_at) : null;
     const endsAt = profile.mining_session_ends_at ? new Date(profile.mining_session_ends_at) : null;
-    const dbActive = profile.mining_status === 'active' && endsAt !== null && endsAt.getTime() > Date.now();
+    const expired = endsAt !== null && endsAt.getTime() <= Date.now();
+    // A session that ended while the user was away (tab closed, navigated off) is still
+    // "active" in the DB until /api/mining/complete runs — surface it as active so the
+    // completion effect below picks it up and finalizes the reward, instead of silently
+    // resetting to "ready" and never crediting.
+    const dbActive = profile.mining_status === 'active' && endsAt !== null
+      && !(profile.mining_reward_credited_at && expired);
 
     setIsActiveLive(dbActive);
     setSessionStartedAt(startedAt);
     setSessionEndsAt(endsAt);
-    if (dbActive) setSessionComplete(false);
+    if (dbActive && !expired) setSessionComplete(false);
 
     setLocalHashrate(profile.hashrate_th);
     const pct = profile.hashrate_capacity_th > 0 ? profile.hashrate_th / profile.hashrate_capacity_th : 0.5;
