@@ -10,6 +10,9 @@ export interface AppProfile {
   hashrate_th: number;
   hashrate_capacity_th: number;
   mining_status: string;
+  mining_session_started_at: string | null;
+  mining_session_ends_at: string | null;
+  mining_reward_credited_at: string | null;
   vip_tier: number;
   is_active: boolean;
   account_status: string;
@@ -46,7 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('profiles')
-      .select('id,full_name,eth_balance,gbp_balance,hashrate_th,hashrate_capacity_th,mining_status,vip_tier,is_active,account_status,eth_wallet_address,admin_subscription_override,admin_subscription_status,admin_subscription_plan,admin_mining_override,admin_withdrawal_override')
+      .select('id,full_name,eth_balance,gbp_balance,hashrate_th,hashrate_capacity_th,mining_status,mining_session_started_at,mining_session_ends_at,mining_reward_credited_at,vip_tier,is_active,account_status,eth_wallet_address,admin_subscription_override,admin_subscription_status,admin_subscription_plan,admin_mining_override,admin_withdrawal_override')
       .eq('id', user.id)
       .single();
     if (data) setProfile(data);

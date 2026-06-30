@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../AppContext';
 import Icon from '../../../components/Icon';
 import RippleButton from '../../../components/RippleButton';
@@ -79,12 +79,26 @@ export default function MiningPage() {
   const [sessionPct, setSessionPct] = useState(0);
   const [gaugeOffset, setGaugeOffset] = useState(754);
   const [activePreset, setActivePreset] = useState(1);
+  const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
+  const [sessionEndsAt, setSessionEndsAt] = useState<Date | null>(null);
+  const [sessionComplete, setSessionComplete] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState(false);
+  const [timeRemainingMs, setTimeRemainingMs] = useState(0);
+  const completionCalledRef = useRef(false);
   const bigC = 2 * Math.PI * 120;
 
   useEffect(() => {
     if (!profile) return;
     /* eslint-disable react-hooks/set-state-in-effect */
-    setIsActiveLive(profile.mining_status === 'active');
+    const startedAt = profile.mining_session_started_at ? new Date(profile.mining_session_started_at) : null;
+    const endsAt = profile.mining_session_ends_at ? new Date(profile.mining_session_ends_at) : null;
+    const dbActive = profile.mining_status === 'active' && endsAt !== null && endsAt.getTime() > Date.now();
+
+    setIsActiveLive(dbActive);
+    setSessionStartedAt(startedAt);
+    setSessionEndsAt(endsAt);
+    if (dbActive) setSessionComplete(false);
+
     setLocalHashrate(profile.hashrate_th);
     const pct = profile.hashrate_capacity_th > 0 ? profile.hashrate_th / profile.hashrate_capacity_th : 0.5;
     setGaugeOffset(bigC * (1 - pct));
@@ -102,21 +116,83 @@ export default function MiningPage() {
     return () => clearInterval(id);
   }, [isActiveLive, localHashrate, cap]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Real-time progress driven by server timestamps — never a tick counter.
+  // This is what keeps the session alive across refreshes/navigation/tabs.
   useEffect(() => {
-    if (!isActiveLive || localHashrate <= 0) return;
-    const id = setInterval(() => {
-      const ratePerTick = (localHashrate * ETH_RATE) / 3600;
-      setSessionEth(e => e + ratePerTick);
-      // 24-hour session: 86400s / 0.12s per tick = 720000 ticks → 100%
-      setSessionPct(p => { const n = p + (100 / 720000); return n >= 100 ? 0 : n; });
-    }, 120);
-    return () => clearInterval(id);
-  }, [isActiveLive, localHashrate]);
+    if (!isActiveLive || !sessionStartedAt || !sessionEndsAt) return;
+    const startMs = sessionStartedAt.getTime();
+    const endMs = sessionEndsAt.getTime();
+    const durationMs = Math.max(1, endMs - startMs);
 
-  function toggleMining() {
-    if (!isEligible) return;
-    setIsActiveLive(v => !v);
-    if (isActiveLive) setGaugeOffset(bigC * (1 - (localHashrate / (cap || 100))));
+    async function callComplete() {
+      try {
+        const res = await fetch('/api/mining/complete', { method: 'POST' });
+        if (res.ok) {
+          setSessionComplete(true);
+          setIsActiveLive(false);
+          setSessionPct(100);
+          setTimeRemainingMs(0);
+        } else {
+          const json = await res.json().catch(() => ({}));
+          if ((json as { already_credited?: boolean }).already_credited) {
+            setSessionComplete(true);
+            setIsActiveLive(false);
+          } else {
+            completionCalledRef.current = false;
+          }
+        }
+      } catch {
+        completionCalledRef.current = false;
+      }
+    }
+
+    function tick() {
+      const now = Date.now();
+      const elapsed = now - startMs;
+      const pct = Math.min(100, (elapsed / durationMs) * 100);
+      setSessionPct(pct);
+      setTimeRemainingMs(Math.max(0, endMs - now));
+
+      const elapsedHours = Math.max(0, elapsed) / 3600000;
+      setSessionEth(localHashrate * ETH_RATE * 3600 * elapsedHours);
+
+      if (now >= endMs && !completionCalledRef.current) {
+        completionCalledRef.current = true;
+        callComplete();
+      }
+    }
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isActiveLive, sessionStartedAt, sessionEndsAt, localHashrate]);
+
+  async function toggleMining() {
+    if (!isEligible || toggleLoading) return;
+    setToggleLoading(true);
+    try {
+      if (isActiveLive) {
+        const res = await fetch('/api/mining/pause', { method: 'POST' });
+        if (res.ok) {
+          setIsActiveLive(false);
+          setGaugeOffset(bigC * (1 - (localHashrate / (cap || 100))));
+        }
+      } else {
+        const res = await fetch('/api/mining/start', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json() as { started_at: string; ends_at: string };
+          const startedAt = new Date(data.started_at);
+          const endsAt = new Date(data.ends_at);
+          setSessionStartedAt(startedAt);
+          setSessionEndsAt(endsAt);
+          setSessionComplete(false);
+          completionCalledRef.current = false;
+          setIsActiveLive(true);
+        }
+      }
+    } finally {
+      setToggleLoading(false);
+    }
   }
 
   function adjustHashrate(delta: number) {
@@ -147,7 +223,12 @@ export default function MiningPage() {
   const depositHref = get('mining', 'deposit_cta_href', '/deposit');
   const withdrawalLocked = balanceUsd < withdrawThreshold;
 
-  const mascotState: MascotState = !isEligible ? 'locked' : isActiveLive ? 'active' : 'ready';
+  const mascotState: MascotState = !isEligible ? 'locked' : sessionComplete ? 'complete' : isActiveLive ? 'active' : 'ready';
+
+  const remHours = Math.floor(timeRemainingMs / 3600000);
+  const remMins = Math.floor((timeRemainingMs % 3600000) / 60000);
+  const remSecs = Math.floor((timeRemainingMs % 60000) / 1000);
+  const timeRemainingLabel = `${remHours}h ${remMins}m ${remSecs}s`;
 
   const miners = [
     { name: 'Etheon Rig Alpha',  sub: `Antares ASIC · ${Math.round(cap * 0.6)} TH`, status: isActiveLive ? 'Active' : 'Offline', sColor: isActiveLive?'#16D98A':'#FF6B8A', sBg: isActiveLive?'rgba(22,217,138,0.14)':'rgba(255,107,138,0.14)' },
@@ -319,6 +400,13 @@ export default function MiningPage() {
             </div>
           </div>
 
+          {sessionComplete && (
+            <div style={{ marginBottom:'14px', padding:'13px 16px', borderRadius:'14px', background:'rgba(22,217,138,0.12)', border:'1px solid rgba(22,217,138,0.3)', display:'flex', alignItems:'center', gap:'10px' }}>
+              <Icon name="celebration" size={20} color="#16D98A" />
+              <span style={{ fontSize:'13.5px', fontWeight:700, color:'#16D98A' }}>£20.00 mining reward credited to your balance</span>
+            </div>
+          )}
+
           <div style={{ position:'relative', marginTop:'4px' }}>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:'12px', marginBottom:'8px', fontWeight:600 }}>
               <span style={{ color:'#A39FB5' }}>Session progress</span>
@@ -327,15 +415,21 @@ export default function MiningPage() {
             <div style={{ height:'7px', borderRadius:'999px', background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
               <div style={{ height:'100%', borderRadius:'999px', background:'linear-gradient(90deg,#9b7bff,#6e8bff)', width:`${sessionPct}%`, transition:'width .3s ease', boxShadow:'0 0 10px rgba(124,92,255,0.7)' }} />
             </div>
+            {isActiveLive && (
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:'11.5px', marginTop:'8px', color:'#6F6B82' }}>
+                <span>Time remaining: {timeRemainingLabel}</span>
+                <span>Expected reward: £20.00</span>
+              </div>
+            )}
           </div>
 
           <RippleButton
             variant={isActiveLive ? 'pause' : 'purple'}
             onClick={(e) => { if (!isActiveLive) triggerFlare({ x: e.clientX, y: e.clientY }); toggleMining(); }}
-            disabled={!isEligible}
-            style={{ width:'100%', marginTop:'18px', display:'flex', alignItems:'center', justifyContent:'center', gap:'9px', fontSize:'15px', padding:'15px', borderRadius:'15px', cursor: isEligible ? 'pointer' : 'not-allowed', opacity: isEligible ? 1 : 0.5, ...(isActiveLive ? {} : { boxShadow: isEligible ? '0 8px 26px rgba(124,92,255,0.45)' : 'none' }) }}>
+            disabled={!isEligible || toggleLoading}
+            style={{ width:'100%', marginTop:'18px', display:'flex', alignItems:'center', justifyContent:'center', gap:'9px', fontSize:'15px', padding:'15px', borderRadius:'15px', cursor: (isEligible && !toggleLoading) ? 'pointer' : 'not-allowed', opacity: (isEligible && !toggleLoading) ? 1 : 0.5, ...(isActiveLive ? {} : { boxShadow: isEligible ? '0 8px 26px rgba(124,92,255,0.45)' : 'none' }) }}>
             <Icon name={isActiveLive ? 'pause' : 'play_arrow'} size={20} color={isActiveLive ? '#FF8DA3' : '#fff'} />
-            {isActiveLive ? 'Pause session' : isEligible ? get('mining','mining_ready_text','Start rewards session') : 'Requirements not met'}
+            {toggleLoading ? 'Please wait…' : isActiveLive ? 'Pause session' : isEligible ? get('mining','mining_ready_text','Start rewards session') : 'Requirements not met'}
           </RippleButton>
 
           {/* Withdrawal lock notice */}
