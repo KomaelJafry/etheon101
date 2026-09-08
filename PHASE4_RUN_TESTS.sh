@@ -42,13 +42,13 @@ echo -e "${BLUE}─────────────────────�
 
 # Deploy migrations using psql
 echo "Deploying Migration 007 (schema)..."
-psql "$DATABASE_URL" < supabase/migrations/007_batch3_schema.sql > /dev/null 2>&1 || echo "  (already deployed or minor error)"
+psql "$DATABASE_URL" < supabase/migrations/20260907145300_batch3_schema.sql > /dev/null 2>&1 || echo "  (already deployed or minor error)"
 
 echo "Deploying Migration 008 (notifications)..."
-psql "$DATABASE_URL" < supabase/migrations/008_batch3_notifications.sql > /dev/null 2>&1 || echo "  (already deployed or minor error)"
+psql "$DATABASE_URL" < supabase/migrations/20260907145600_batch3_notifications.sql > /dev/null 2>&1 || echo "  (already deployed or minor error)"
 
 echo "Deploying Migration 009 (RPCs)..."
-psql "$DATABASE_URL" < supabase/migrations/009_batch3_rpcs.sql > /dev/null 2>&1 || echo "  (already deployed or minor error)"
+psql "$DATABASE_URL" < supabase/migrations/20260907150500_batch3_rpcs.sql > /dev/null 2>&1 || echo "  (already deployed or minor error)"
 
 echo -e "${GREEN}✓ Migrations deployed${NC}"
 
@@ -56,39 +56,44 @@ echo ""
 echo -e "${BLUE}Step 2: Seed Test Data${NC}"
 echo -e "${BLUE}─────────────────────────────────────────────────────────${NC}"
 
-# Seed test users and data
-psql "$DATABASE_URL" << 'SEED_EOF' > /dev/null 2>&1
+# Resolve current Supabase auth user IDs (users are created through Supabase Auth)
+ADMIN_ID=$(psql "$DATABASE_URL" -t -c "SELECT id FROM auth.users WHERE email='admin@test.local';" | tr -d ' ')
+C1_ID=$(psql "$DATABASE_URL" -t -c "SELECT id FROM auth.users WHERE email='customer1@test.local';" | tr -d ' ')
+C2_ID=$(psql "$DATABASE_URL" -t -c "SELECT id FROM auth.users WHERE email='customer2@test.local';" | tr -d ' ')
 
--- Admin user
-INSERT INTO auth.users (id, email, email_confirmed_at, created_at, updated_at)
-VALUES ('00000000-0000-0000-0000-000000000001', 'admin@test.local', NOW(), NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
+if [ -z "$ADMIN_ID" ] || [ -z "$C1_ID" ] || [ -z "$C2_ID" ]; then
+    echo "Required test auth users missing"
+    exit 1
+fi
+
+# Seed test users and data
+psql "$DATABASE_URL" << SEED_EOF > /dev/null 2>&1
+
+-- Seed profiles using real Supabase auth IDs
 
 INSERT INTO profiles (id, email, role, is_system_admin, full_name, gbp_balance, created_at)
-VALUES ('00000000-0000-0000-0000-000000000001', 'admin@test.local', 'admin', true, 'Admin User', 10000.00, NOW())
-ON CONFLICT (id) DO UPDATE SET role='admin', is_system_admin=true;
-
--- Customer 1
-INSERT INTO auth.users (id, email, email_confirmed_at, created_at, updated_at)
-VALUES ('11111111-1111-1111-1111-111111111111', 'customer1@test.local', NOW(), NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
+VALUES ('$ADMIN_ID', 'admin@test.local', 'admin', true, 'Admin User', 10000.00, NOW())
+ON CONFLICT (id) DO UPDATE SET role='admin', is_system_admin=true, gbp_balance=10000.00;
 
 INSERT INTO profiles (id, email, role, full_name, gbp_balance, created_at)
-VALUES ('11111111-1111-1111-1111-111111111111', 'customer1@test.local', 'user', 'Customer One', 3000.00, NOW())
-ON CONFLICT (id) DO UPDATE SET gbp_balance=3000.00;
-
--- Customer 2
-INSERT INTO auth.users (id, email, email_confirmed_at, created_at, updated_at)
-VALUES ('22222222-2222-2222-2222-222222222222', 'customer2@test.local', NOW(), NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
+VALUES ('$C1_ID', 'customer1@test.local', 'customer', 'Customer One', 3000.00, NOW())
+ON CONFLICT (id) DO UPDATE SET
+    email='customer1@test.local',
+    role='customer',
+    full_name='Customer One',
+    gbp_balance=3000.00;
 
 INSERT INTO profiles (id, email, role, full_name, gbp_balance, created_at)
-VALUES ('22222222-2222-2222-2222-222222222222', 'customer2@test.local', 'user', 'Customer Two', 500.00, NOW())
-ON CONFLICT (id) DO UPDATE SET gbp_balance=500.00;
+VALUES ('$C2_ID', 'customer2@test.local', 'customer', 'Customer Two', 500.00, NOW())
+ON CONFLICT (id) DO UPDATE SET
+    email='customer2@test.local',
+    role='customer',
+    full_name='Customer Two',
+    gbp_balance=500.00;
 
 -- Verified destination for Customer 1
 INSERT INTO withdrawal_destinations (id, user_id, iban_encrypted_key, account_holder_name, country_code, verification_status, status, created_at)
-VALUES ('33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'GB89CBKG12345678901234', 'Customer One', 'GB', 'verified', 'active', NOW())
+VALUES ('33333333-3333-3333-3333-333333333333', '$C1_ID', 'GB89CBKG12345678901234', 'Customer One', 'GB', 'verified', 'active', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 SEED_EOF
@@ -99,54 +104,24 @@ echo ""
 echo -e "${BLUE}Step 3: Generate Authentication Tokens${NC}"
 echo -e "${BLUE}─────────────────────────────────────────────────────────${NC}"
 
-# Get tokens from Supabase
-echo "Getting admin token..."
-ADMIN_RESPONSE=$(curl -s -X POST "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/token?grant_type=password" \
-  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@test.local",
-    "password": "TestPassword123!",
-    "gotrue_meta_security": {}
-  }')
+# Use existing authentication tokens
+echo "Checking authentication tokens..."
 
-ADMIN_TOKEN=$(echo "$ADMIN_RESPONSE" | jq -r '.access_token' 2>/dev/null || echo "")
-
-if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
-    echo -e "${YELLOW}Note: Token generation requires user authentication${NC}"
-    echo "Create tokens manually or use existing tokens:"
-    echo "  export ADMIN_TOKEN='your-admin-token'"
-    echo "  export C1_TOKEN='your-customer1-token'"
-    echo "  export C2_TOKEN='your-customer2-token'"
-    echo "Then re-run this script."
+if [ -z "$ADMIN_TOKEN" ] || [ -z "$C1_TOKEN" ] || [ -z "$C2_TOKEN" ]; then
+    echo -e "${RED}✗ Authentication tokens missing${NC}"
+    echo ""
+    echo "Set tokens before running:"
+    echo "export ADMIN_TOKEN='your-admin-token'"
+    echo "export C1_TOKEN='your-customer1-token'"
+    echo "export C2_TOKEN='your-customer2-token'"
     exit 1
 fi
 
-echo "Getting customer 1 token..."
-C1_RESPONSE=$(curl -s -X POST "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/token?grant_type=password" \
-  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "customer1@test.local",
-    "password": "TestPassword123!",
-    "gotrue_meta_security": {}
-  }')
+echo -e "${GREEN}✓ Using existing authentication tokens${NC}"
 
-C1_TOKEN=$(echo "$C1_RESPONSE" | jq -r '.access_token' 2>/dev/null || echo "")
-
-echo "Getting customer 2 token..."
-C2_RESPONSE=$(curl -s -X POST "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/token?grant_type=password" \
-  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "customer2@test.local",
-    "password": "TestPassword123!",
-    "gotrue_meta_security": {}
-  }')
-
-C2_TOKEN=$(echo "$C2_RESPONSE" | jq -r '.access_token' 2>/dev/null || echo "")
-
-echo -e "${GREEN}✓ Tokens generated${NC}"
+export ADMIN_TOKEN
+export C1_TOKEN
+export C2_TOKEN
 
 echo ""
 echo -e "${BLUE}Step 4: Kill Existing Server (if running)${NC}"
@@ -206,7 +181,7 @@ STARTING_BALANCE=$(psql "$DATABASE_URL" -t -c "SELECT gbp_balance FROM profiles 
 echo "Starting balance: $STARTING_BALANCE GBP"
 
 # Capture starting withdrawal count
-STARTING_WITHDRAWAL_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM gbp_withdrawals WHERE user_id='11111111-1111-1111-1111-111111111111';")
+STARTING_WITHDRAWAL_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM gbp_withdrawals WHERE user_id='$C1_ID';")
 echo "Starting withdrawal count: $STARTING_WITHDRAWAL_COUNT"
 
 echo "$STARTING_BALANCE" > "$EVIDENCE_DIR/c12-starting-balance.txt"
@@ -258,11 +233,11 @@ echo "Final balance: $FINAL_BALANCE GBP"
 echo "Expected: 2500 GBP or 2750 GBP (one success, one failure)"
 
 # Capture final withdrawal count
-FINAL_WITHDRAWAL_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM gbp_withdrawals WHERE user_id='11111111-1111-1111-1111-111111111111';")
+FINAL_WITHDRAWAL_COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM gbp_withdrawals WHERE user_id='$C1_ID';")
 echo "Final withdrawal count: $FINAL_WITHDRAWAL_COUNT (expected: 1 or 2)"
 
 # Capture all withdrawal records for this user
-psql "$DATABASE_URL" -c "SELECT id, amount_gbp, status, created_at FROM gbp_withdrawals WHERE user_id='11111111-1111-1111-1111-111111111111' ORDER BY created_at DESC;" > "$EVIDENCE_DIR/c12-withdrawal-records.txt"
+psql "$DATABASE_URL" -c "SELECT id, amount_gbp, status, created_at FROM gbp_withdrawals WHERE user_id='$C1_ID' ORDER BY created_at DESC;" > "$EVIDENCE_DIR/c12-withdrawal-records.txt"
 
 echo ""
 echo "Withdrawal records:"
@@ -290,7 +265,7 @@ echo ""
 echo -e "${BLUE}Step 8: Idempotent Deposit Test (A8 - CRITICAL)${NC}"
 echo -e "${BLUE}─────────────────────────────────────────────────────────${NC}"
 
-CUSTOMER2_ID="22222222-2222-2222-2222-222222222222"
+CUSTOMER2_ID="$C2_ID"
 PAYMENT_EVENT_ID="webhook_evt_$(date +%s)_12345"
 
 echo "Creating deposit and crediting twice with same payment_event_id..."
@@ -428,7 +403,7 @@ cat "$EVIDENCE_DIR/s3-admin-role-verification.txt"
 echo ""
 echo "S5: User ID Protection Verification"
 echo "Querying database to confirm user_id matches authenticated session only..."
-psql "$DATABASE_URL" -c "SELECT id, email, role FROM profiles WHERE id='11111111-1111-1111-1111-111111111111' LIMIT 1;" > "$EVIDENCE_DIR/s5-user-id-protection-verification.txt"
+psql "$DATABASE_URL" -c "SELECT id, email, role FROM profiles WHERE id='$C1_ID' LIMIT 1;" > "$EVIDENCE_DIR/s5-user-id-protection-verification.txt"
 echo "User ID verification query result:"
 cat "$EVIDENCE_DIR/s5-user-id-protection-verification.txt"
 
@@ -599,7 +574,7 @@ See $EVIDENCE_DIR/automated-tests.log for detailed output (17 tests automated + 
 ### S5: User ID Protection
 - **Test:** Database verification that user_id matches authenticated session
 - **Evidence File:** $EVIDENCE_DIR/s5-user-id-protection-verification.txt
-- **Query:** `SELECT id, email, role FROM profiles WHERE id='11111111-1111-1111-1111-111111111111'`
+- **Query:** `SELECT id, email, role FROM profiles WHERE id='$C1_ID'`
 - **Expected:** User ID in database matches authenticated session ID only
 - **Implementation:** user_id: user.id (from JWT, never from request body)
 - **Status:** ✅ VERIFIED - Database shows correct user association
