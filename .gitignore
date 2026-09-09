@@ -44,3 +44,7 @@ next-env.d.ts
 # local AI/tool files
 .claude/
 npm
+# Test scripts with credentials (SECURITY)
+create-test-account.js
+*-test-*.js
+test-credentials.js
