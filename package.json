@@ -21,17 +21,13 @@
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.8.0",
-<<<<<<< HEAD
-    "@supabase/auth-helpers-nextjs": "^0.8.7",    "@supabase/ssr": "^0.12.0",
-=======
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/ssr": "^0.12.0",
->>>>>>> 11d28da (Fix duplicate payment routes and complete Phase 5 build)
     "@supabase/supabase-js": "^2.108.1",
     "next": "16.2.9",
     "qrcode.react": "^4.2.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4",h
+    "react-dom": "19.2.4",
     "stripe": "^22.2.1",
     "zod": "^4.4.3"
   },
@@ -53,10 +49,9 @@
     "tailwindcss": "^4",
     "ts-jest": "^29.1.1",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": "22.x",
+    "npm": "10.x"
   }
-}
-
-"engines": {
-  "node": "22.x",
-  "npm": "10.x"
 }
