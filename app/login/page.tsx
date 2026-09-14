@@ -34,6 +34,14 @@ function Spinner() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabaseRef = useRef<ReturnType<typeof createBrowserClient> | null>(null);
+  if (!supabaseRef.current) {
+    supabaseRef.current = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  const supabase = supabaseRef.current;
   const [tab, setTab] = useState<'login' | 'signup'>('login');
 
   useEffect(() => { document.title = 'Sign in | Etheon'; }, []);
@@ -83,11 +91,6 @@ export default function LoginPage() {
     const remaining = Math.max(signupUntil, loginUntil) - Date.now();
     if (remaining > 0) startCooldownTimer(Math.ceil(remaining / 1000));
   }, []); // mount-only
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
